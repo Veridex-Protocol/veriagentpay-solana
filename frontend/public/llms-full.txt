@@ -1,0 +1,49 @@
+# VeriAgent Pay: Comprehensive Technical & Protocol Guide
+
+## 1. Executive Summary
+VeriAgent Pay is an interoperable, self-custodial social payment and yield automation protocol. It bridges conversational chat platforms (Telegram, WhatsApp, Discord, Slack) with high-performance blockchain settlement layers (BOTChain L1 and Stellar Soroban) using WebAuthn P-256 passkey cryptography and ERC-4337 account abstraction.
+
+## 2. Core Protocol Architecture
+
+### 2.1 Smart Account & Passkey Security
+- **Asymmetric Cryptography**: Accounts are secured using WebAuthn / FIDO2 standards. Passkeys are generated inside the user device's Secure Enclave / Trusted Execution Environment (TEE).
+- **Zero Raw Biometric Exposure**: Raw biometrics (Face ID, Touch ID, fingerprint templates) never leave the client device. Only the public key (P-256 curve) is registered on-chain with the smart account.
+- **Session Keys & Policy Delegation**: Users can grant scoped, short-lived session keys for instant micro-transactions and AI auto-saving. Session keys enforce strict spending ceilings, time limits, and action boundaries.
+- **Self-Custody**: The user remains the sole owner of their smart account. Neither VeriAgent Pay, relayers, nor bots can transfer funds without valid cryptographic signatures.
+
+### 2.2 Gasless Settlement & Sponsorship
+- **BOTChain L1**: Uses gas paymasters and ERC-4337 bundlers to sponsor gas fees, enabling $0 transaction cost for end-users.
+- **Stellar Soroban**: Employs fee-bump transaction relayers and SEP-43 / Passkey Kit smart wallet helpers for gasless operations.
+
+### 2.3 Conversational Social Payments
+- **Telegram Bot (@VeriAgentPayBot)**: Full-featured bot interface for sending money, checking balances, claiming red envelopes, and contributing to pools.
+- **Multi-Platform Continuity**: User accounts and balances stay synchronized across Web Dashboard, Telegram, WhatsApp, Discord, and Slack.
+
+### 2.4 Yield Vaults & zkTLS Attestation
+- **Auto-Save**: Users can allocate idle USDT balances into audited yield vaults.
+- **zkTLS Cryptographic Verification**: Yield percentages and protocol attestations are verified using Veridex zkTLS proof network, ensuring transparent and verifiable returns.
+
+## 3. Product Surfaces & Routes
+
+| Surface | Route | Description |
+| :--- | :--- | :--- |
+| **Home / Marketing** | `/` | Acquisition and protocol landing page |
+| **Dashboard** | `/dashboard` | Main wallet management interface |
+| **Send** | `/send` | Peer-to-peer cryptocurrency transfers |
+| **Payment Links** | `/pay` | Shareable instant payment links |
+| **Requests** | `/requests` | Payment invoices and incoming requests |
+| **Group Pools** | `/pools` | Collaborative group lending and savings |
+| **Bill Splits** | `/splits` | Multi-party expense splitting |
+| **Yield Vaults** | `/vaults` | High-yield auto-save vaults |
+| **Red Envelopes** | `/envelopes` | Lucky packet money gifts |
+| **Referrals** | `/invite` | Earn rewards by inviting friends |
+| **Leaderboard** | `/leaderboard` | Community rankings and activity |
+| **Security Settings**| `/settings/security` | Manage passkeys and session keys |
+| **Privacy Policy** | `/privacy` | Global regulatory compliance |
+
+## 4. Official Links & Community
+
+- **Website**: https://veriagentpay.xyz
+- **X / Twitter**: https://x.com/veriagentpay
+- **Telegram Community**: https://t.me/VeriagentPay
+- **Telegram Bot**: https://t.me/VeriAgentPayBot

@@ -1,0 +1,1062 @@
+/* ==========================================================================
+   Platform scene system
+   One financial object. Four social wrappers.
+   The scene is a fixed-geometry canvas: every layer is absolutely positioned
+   so swapping platforms can never move the payment object or reflow the page.
+   ========================================================================== */
+
+.va-scene {
+  /* Vertical budget: bar, two messages, the payment object at --pay-top, then
+     the recipient reply and the savings prompt anchored to the bottom. The
+     object is the tallest element, so --pay-top is set from its worst case. */
+  --scene-h: 736px;
+  --bar-h: 74px;
+  --pad: 20px;
+  --msg-left: 20px;
+  --msg-right: 20px;
+  --pay-top: 220px;
+  --pay-w: 70%;
+
+  position: relative;
+  width: 100%;
+  height: var(--scene-h);
+  border-radius: 28px;
+  overflow: hidden;
+  isolation: isolate;
+  color: #ffffff;
+  font-size: 14px;
+  background: var(--frame-canvas, #101317);
+  transition: background-color var(--va-dur-scene) var(--va-ease);
+}
+
+.va-scene__layer {
+  position: absolute;
+  inset: 0;
+  transition: filter 520ms var(--va-ease), opacity 520ms var(--va-ease), transform 520ms var(--va-ease);
+  will-change: filter, opacity, transform;
+}
+
+/* Depth-of-field: Once the receipt arrives, the conversation background blurs out
+   so the financial receipt stands in hyper-crisp focus. */
+.va-scene[data-received='true'] .va-scene__layer {
+  filter: blur(14px) brightness(0.68) saturate(1.15);
+  opacity: 0.45;
+  transform: scale(0.985);
+  pointer-events: none;
+}
+
+.va-frame {
+  position: absolute;
+  inset: 0;
+  background: var(--frame-canvas);
+  color: var(--frame-fg, #ffffff);
+}
+
+.va-frame__pattern {
+  position: absolute;
+  inset: 0;
+  opacity: var(--frame-pattern-opacity, 0);
+  background-image: var(--frame-pattern, none);
+  background-size: 148px 148px;
+  pointer-events: none;
+}
+
+.va-frame__rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  background: var(--frame-rail, transparent);
+}
+
+.va-frame__rail i {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: block;
+  background: var(--frame-rail-item, rgba(255, 255, 255, 0.14));
+}
+
+.va-frame__rail i:first-child {
+  background: var(--frame-accent);
+  border-radius: 11px;
+}
+
+.va-frame__rail i:nth-child(3) {
+  border-radius: 50%;
+}
+
+.va-frame__bar {
+  position: absolute;
+  left: var(--bar-left, 0);
+  right: 0;
+  top: 0;
+  height: var(--bar-h);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--frame-bar);
+  color: var(--frame-bar-fg, #ffffff);
+  border-bottom: 1px solid var(--frame-bar-hair, transparent);
+}
+
+.va-frame__bar-icon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  opacity: 0.85;
+}
+
+.va-frame__avatar {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--frame-avatar-radius, 50%);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(140deg, #f2c9a4, #d99b6d);
+  color: #35200f;
+}
+
+.va-frame__who {
+  min-width: 0;
+  flex: 1;
+}
+
+.va-frame__who b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.va-frame__who span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.va-frame__bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+  opacity: 0.8;
+}
+
+.va-frame__bar-actions svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* --- Message column ----------------------------------------------------- */
+
+.va-frame__thread {
+  position: absolute;
+  left: var(--msg-left);
+  right: var(--msg-right);
+  top: calc(var(--bar-h) + 18px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.va-bubble {
+  max-width: 78%;
+  padding: 10px 13px 8px;
+  border-radius: 16px;
+  font-size: 14.5px;
+  line-height: 1.4;
+  width: fit-content;
+  background: var(--bubble-in-bg);
+  color: var(--bubble-in-fg, inherit);
+}
+
+.va-bubble--out {
+  margin-left: auto;
+  background: var(--bubble-out-bg);
+  color: var(--bubble-out-fg, inherit);
+}
+
+.va-bubble__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 10.5px;
+  opacity: 0.62;
+}
+
+.va-bubble__meta svg {
+  width: 13px;
+  height: 13px;
+}
+
+.va-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: currentColor;
+  animation: va-blink 900ms steps(2, jump-none) infinite;
+}
+
+@keyframes va-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* --- Flat message rows (Discord / Slack) -------------------------------- */
+
+.va-post {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 11px;
+  max-width: 100%;
+}
+
+.va-post__avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--frame-avatar-radius, 50%);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--post-avatar-bg, #4d5058);
+  color: var(--post-avatar-fg, #ffffff);
+}
+
+.va-post__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 1px;
+}
+
+.va-post__head b {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--post-name, inherit);
+}
+
+.va-post__head time {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.va-post__body {
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
+.va-code {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--code-bg, rgba(255, 255, 255, 0.09));
+  color: var(--code-fg, inherit);
+}
+
+/* --- Bottom slots: recipient reply + savings suggestion ------------------ */
+
+.va-frame__reply {
+  position: absolute;
+  left: var(--msg-left);
+  right: var(--msg-right);
+  bottom: var(--reply-bottom, 62px);
+}
+
+.va-frame__suggest {
+  position: absolute;
+  left: var(--msg-left);
+  right: var(--msg-right);
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  background: var(--suggest-bg, rgba(255, 255, 255, 0.07));
+  border: 1px solid var(--suggest-bd, rgba(255, 255, 255, 0.1));
+  color: var(--suggest-fg, inherit);
+}
+
+.va-frame__suggest svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--va-money);
+}
+
+.va-frame__suggest span {
+  flex: 1;
+  opacity: 0.86;
+}
+
+.va-frame__suggest b {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--suggest-btn-bg, rgba(255, 255, 255, 0.14));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* --- Platform: Telegram -------------------------------------------------- */
+
+.va-scene[data-platform='telegram'] {
+  --frame-canvas: #17212b;
+  --frame-bar: #212d3b;
+  --frame-accent: #2aabee;
+  --bubble-in-bg: #182533;
+  --bubble-out-bg: #2b5278;
+  --frame-bar-hair: rgba(0, 0, 0, 0.35);
+  --reply-bottom: 66px;
+}
+
+.va-scene[data-platform='telegram'] .va-frame__pattern {
+  --frame-pattern-opacity: 1;
+  --frame-pattern: radial-gradient(
+      circle at 22% 18%,
+      rgba(42, 171, 238, 0.14),
+      transparent 42%
+    ),
+    radial-gradient(circle at 84% 74%, rgba(42, 171, 238, 0.09), transparent 46%);
+  background-size: cover;
+}
+
+.va-scene[data-platform='telegram'] .va-bubble {
+  border-bottom-left-radius: 6px;
+}
+
+.va-scene[data-platform='telegram'] .va-bubble--out {
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 6px;
+}
+
+.va-scene[data-platform='telegram'] .va-frame__who span {
+  color: #6fc0ea;
+  opacity: 1;
+}
+
+/* --- Platform: WhatsApp -------------------------------------------------- */
+
+.va-scene[data-platform='whatsapp'] {
+  --frame-canvas: #0b141a;
+  --frame-bar: #075e54;
+  --frame-accent: #25d366;
+  --bubble-in-bg: #202c33;
+  --bubble-out-bg: #005c4b;
+  --reply-bottom: 66px;
+}
+
+/* Original chat-pattern: sparse hairline arcs and ticks, not WhatsApp art. */
+.va-scene[data-platform='whatsapp'] .va-frame__pattern {
+  --frame-pattern-opacity: 0.5;
+  --frame-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='148' height='148' viewBox='0 0 148 148'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.05' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M18 26a10 10 0 0 1 14 0'/%3E%3Cpath d='M96 18v12M90 24h12'/%3E%3Ccircle cx='124' cy='52' r='7'/%3E%3Cpath d='M28 96h16l-5 8'/%3E%3Cpath d='M62 68a9 9 0 1 0 9 9'/%3E%3Cpath d='M108 108h18M108 116h11'/%3E%3Cpath d='M52 128a8 8 0 0 1 12 0'/%3E%3Cpath d='M132 88v10'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.va-scene[data-platform='whatsapp'] .va-bubble {
+  border-radius: 4px 14px 14px 14px;
+}
+
+.va-scene[data-platform='whatsapp'] .va-bubble--out {
+  border-radius: 14px 4px 14px 14px;
+}
+
+/* Tails */
+.va-scene[data-platform='whatsapp'] .va-bubble {
+  position: relative;
+}
+
+.va-scene[data-platform='whatsapp'] .va-bubble::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -7px;
+  width: 8px;
+  height: 12px;
+  background: var(--bubble-in-bg);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+
+.va-scene[data-platform='whatsapp'] .va-bubble--out::after {
+  left: auto;
+  right: -7px;
+  background: var(--bubble-out-bg);
+  clip-path: polygon(0 0, 0 100%, 100% 0);
+}
+
+.va-scene[data-platform='whatsapp'] .va-quote {
+  border-left: 3px solid var(--frame-accent);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 9px;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+
+.va-scene[data-platform='whatsapp'] .va-quote b {
+  display: block;
+  color: var(--frame-accent);
+  font-size: 12px;
+  margin-bottom: 1px;
+}
+
+/* --- Platform: Discord --------------------------------------------------- */
+
+.va-scene[data-platform='discord'] {
+  --frame-canvas: #313338;
+  --frame-bar: #2b2d31;
+  --frame-rail: #1e1f22;
+  --frame-accent: #5865f2;
+  --frame-bar-hair: rgba(0, 0, 0, 0.4);
+  --frame-avatar-radius: 50%;
+  --bar-left: 58px;
+  --msg-left: 74px;
+  --post-avatar-bg: #5865f2;
+  --reply-bottom: 64px;
+  --suggest-bg: rgba(88, 101, 242, 0.1);
+  --suggest-bd: rgba(88, 101, 242, 0.34);
+}
+
+.va-scene[data-platform='discord'] .va-post__head b {
+  --post-name: #f2f3f5;
+}
+
+.va-scene[data-platform='discord'] .va-frame__who b::before {
+  content: '@';
+  opacity: 0.55;
+  margin-right: 1px;
+}
+
+/* --- Platform: Slack ----------------------------------------------------- */
+
+.va-scene[data-platform='slack'] {
+  --frame-canvas: #ffffff;
+  --frame-fg: #1d1c1d;
+  --frame-bar: #3f0e40;
+  --frame-rail: #3f0e40;
+  --frame-accent: #2eb67d;
+  --frame-avatar-radius: 9px;
+  --bar-left: 58px;
+  --msg-left: 74px;
+  --bubble-in-bg: transparent;
+  --bubble-out-bg: transparent;
+  --post-avatar-bg: #4a154b;
+  --code-bg: #f4ede4;
+  --code-fg: #c0392b;
+  --reply-bottom: 66px;
+  --suggest-bg: #f8f8f8;
+  --suggest-bd: #e2e2e7;
+  --suggest-btn-bg: #e8e8ea;
+}
+
+.va-scene[data-platform='slack'] .va-frame__rail i {
+  --frame-rail-item: rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+}
+
+.va-scene[data-platform='slack'] .va-frame__rail i:first-child {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.va-scene[data-platform='slack'] .va-post__head b {
+  --post-name: #1d1c1d;
+}
+
+.va-scene[data-platform='slack'] .va-frame__suggest {
+  color: #454245;
+}
+
+.va-scene[data-platform='slack'] .va-attach {
+  --attach-fg: #454245;
+  --attach-tag-bg: #e2e2e7;
+  --attach-tag-fg: #454245;
+}
+
+.va-scene[data-platform='slack'] .va-thread-note {
+  margin-top: 5px;
+  padding-left: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1264a3;
+}
+
+/* ==========================================================================
+   The payment object: identical in every platform, never unmounted
+   ========================================================================== */
+
+/* The slot pins the object in the canvas. Only the slot knows about the
+   platform; the object inside it never changes shape or position.
+   Centring uses auto margins rather than translateX(-50%), because the entrance
+   animation owns `transform` and would otherwise cancel the offset. */
+.va-pay-slot {
+  position: absolute;
+  top: var(--pay-top);
+  left: 0;
+  right: 0;
+  width: min(var(--pay-w), calc(100% - 40px));
+  margin-inline: auto;
+  z-index: 3;
+}
+
+.va-scene[data-received='true'] .va-pay-slot::before {
+  content: '';
+  position: absolute;
+  inset: -18px;
+  background: radial-gradient(ellipse at center, rgba(234, 179, 8, 0.22), rgba(250, 204, 21, 0.10), transparent 70%);
+  border-radius: 36px;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(20px);
+  animation: va-receipt-glow 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes va-receipt-glow {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+/* Per-platform attachment treatment: label above, accent beside. */
+.va-attach {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 7px);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--attach-fg, rgba(255, 255, 255, 0.75));
+  transition: opacity 350ms var(--va-ease);
+}
+
+.va-scene[data-received='true'] .va-attach {
+  opacity: 0.85;
+}
+
+.va-attach svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  opacity: 0.8;
+}
+
+.va-attach b {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--attach-tag-bg, rgba(255, 255, 255, 0.14));
+  color: var(--attach-tag-fg, inherit);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.va-attach__bar {
+  position: absolute;
+  left: -11px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 3px;
+  background: var(--frame-accent);
+}
+
+.va-pay {
+  position: relative;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid var(--va-hair-light);
+  color: var(--va-ink);
+  overflow: hidden;
+  transition: box-shadow 420ms var(--va-ease), transform 420ms var(--va-ease);
+}
+
+.va-scene[data-received='true'] .va-pay {
+  box-shadow: 0 28px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 35px rgba(234, 179, 8, 0.18);
+  transform: translateY(-2px);
+}
+
+.va-pay__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--va-hair-light);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.va-pay__head svg {
+  width: 15px;
+  height: 15px;
+  color: var(--va-money-deep);
+}
+
+.va-pay__head span {
+  margin-left: auto;
+  font-weight: 500;
+  color: var(--va-muted);
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+}
+
+.va-pay__amount {
+  padding: 16px 18px 13px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.va-pay__amount b {
+  font-size: clamp(30px, 3.5vw, 45px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.va-pay__to {
+  text-align: right;
+  font-size: 13px;
+}
+
+.va-pay__to b {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.va-pay__to span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: var(--va-muted);
+}
+
+.va-pay__to svg {
+  width: 12px;
+  height: 12px;
+  color: var(--va-proof-deep);
+}
+
+.va-pay__rows {
+  padding: 0 18px;
+}
+
+.va-pay__rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+  border-top: 1px solid var(--va-hair-light);
+  font-size: 13.5px;
+}
+
+.va-pay__rows dt {
+  color: var(--va-muted);
+}
+
+.va-pay__rows dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Trust Lens: decorative rows dim, authorised facts stay crisp */
+.va-pay[data-lens='true'] .va-pay__rows > div,
+.va-pay[data-lens='true'] .va-pay__head,
+.va-pay[data-lens='true'] .va-pay__steps,
+.va-pay[data-lens='true'] .va-pay__actions {
+  transition: opacity 320ms var(--va-ease), background-color 320ms var(--va-ease);
+}
+
+.va-pay[data-lens='true'] .va-pay__rows > div:not([data-key]),
+.va-pay[data-lens='true'] .va-pay__head,
+.va-pay[data-lens='true'] .va-pay__steps,
+.va-pay[data-lens='true'] .va-pay__actions {
+  opacity: 0.28;
+}
+
+.va-pay[data-lens='true'] .va-pay__rows > div[data-key] {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  background: var(--va-money-wash);
+}
+
+.va-pay__rail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 12px 16px 8px;
+}
+
+.va-pay__rail i {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--va-hair-light);
+  transition: background-color 320ms var(--va-ease);
+}
+
+.va-pay__rail i[data-on='true'] {
+  background: var(--va-money);
+}
+
+.va-pay__steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 0 16px 14px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--va-muted);
+}
+
+.va-pay__steps span[data-on='true'] {
+  color: var(--va-money-deep);
+  font-weight: 600;
+}
+
+.va-pay__actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+/* Depicted controls, not interactive ones: hidden from assistive technology
+   and never focusable, because this is a picture of the product. */
+.va-pay__actions > span {
+  flex: 1;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid var(--va-hair-light);
+  background: #ffffff;
+  color: var(--va-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.va-pay__actions > span:first-child {
+  flex: 1.6;
+  background: var(--va-ink);
+  border-color: var(--va-ink);
+  color: #ffffff;
+}
+
+/* Receipt trace */
+.va-pay__receipt {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--va-hair-light);
+  background: #fefce8;
+}
+
+.va-pay__trace {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: #fef9c3;
+  display: grid;
+  place-items: center;
+  color: var(--va-proof-deep);
+}
+
+.va-pay__trace svg {
+  width: 30px;
+  height: 30px;
+}
+
+.va-pay__receipt b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.va-pay__receipt small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--va-muted);
+}
+
+.va-pay__pending {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--va-hair-light);
+  font-size: 12.5px;
+  color: var(--va-body);
+}
+
+.va-pay__pending i {
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--va-money), rgba(234, 179, 8, 0));
+  animation: va-trace 1.1s var(--va-ease) infinite;
+}
+
+@keyframes va-trace {
+  0% {
+    transform: translateX(-6px) scaleX(0.5);
+    opacity: 0.4;
+  }
+  60% {
+    transform: translateX(6px) scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(14px) scaleX(0.5);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   The operating-system passkey sheet: platform independent by definition
+   ========================================================================== */
+
+.va-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 10px 20px calc(18px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: rgba(244, 244, 246, 0.96);
+  backdrop-filter: blur(24px) saturate(180%);
+  color: var(--va-ink);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.va-sheet__grab {
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.va-sheet__glyph {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 10px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  border: 1px solid var(--va-hair-light);
+  color: var(--va-ink);
+}
+
+.va-sheet__glyph svg {
+  width: 24px;
+  height: 24px;
+}
+
+.va-sheet h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.va-sheet p {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--va-muted);
+}
+
+.va-sheet__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.va-sheet__buttons > * {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 9999px;
+  border: 0;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.07);
+  color: var(--va-ink);
+}
+
+.va-sheet__buttons > *:last-child {
+  background: #070A11;
+  color: #ffffff;
+}
+
+.va-sheet[data-verified='true'] .va-sheet__glyph {
+  background: var(--va-money);
+  border-color: var(--va-money);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Scene shell: tabs, stage caption, replay
+   ========================================================================== */
+
+.va-stage {
+  width: 100%;
+}
+
+.va-stage__tabs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.va-stage__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--va-on-dark-soft);
+}
+
+.va-stage__status b {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+}
+
+.va-stage__status b i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--va-money);
+  flex: none;
+}
+
+.va-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 240ms var(--va-ease), background-color 240ms var(--va-ease);
+}
+
+.va-replay:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.va-replay svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ==========================================================================
+   Responsive scene geometry: mobile is composed, not stacked
+   ========================================================================== */
+
+@media (max-width: 767px) {
+  .va-scene {
+    --scene-h: 660px;
+    --bar-h: 62px;
+    --pay-top: 172px;
+    --pay-w: 328px;
+    border-radius: 22px;
+    font-size: 13.5px;
+  }
+
+  .va-scene[data-platform='discord'],
+  .va-scene[data-platform='slack'] {
+    --bar-left: 46px;
+    --msg-left: 58px;
+  }
+
+  .va-frame__rail {
+    width: 46px;
+  }
+
+  .va-frame__rail i {
+    width: 28px;
+    height: 28px;
+  }
+
+  .va-frame__avatar,
+  .va-post__avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .va-post {
+    grid-template-columns: 32px 1fr;
+    gap: 9px;
+  }
+
+  .va-pay__amount b {
+    font-size: 26px;
+  }
+
+  .va-frame__thread {
+    top: calc(var(--bar-h) + 14px);
+    gap: 8px;
+  }
+}

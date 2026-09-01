@@ -1,0 +1,27 @@
+[package]
+name = "veriagent-pay"
+version = "0.1.0"
+description = "Passkey-authorized social payments on Solana"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "veriagent_pay"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+custom-heap = []
+custom-panic = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.31.1", default-features = false, features = ["associated_token", "token"] }
+base64ct = { version = "1.8.0", features = ["alloc"] }
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.143", default-features = false, features = ["alloc"] }

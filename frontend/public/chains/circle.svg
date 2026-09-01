@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 100" width="350" height="100">
+  <g fill="#FFFFFF">
+    <circle cx="28" cy="22" r="12" />
+    <path d="M28,42 C15.8,42 6,51.8 6,64 C6,76.2 15.8,86 28,86 C40.2,86 50,76.2 50,64 C50,51.8 40.2,42 28,42 Z M28,74 C22.5,74 18,69.5 18,64 C18,58.5 22.5,54 28,54 C33.5,54 38,58.5 38,64 C38,69.5 33.5,74 28,74 Z" />
+    <text x="68" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="700" letter-spacing="-1.5">Circle</text>
+  </g>
+</svg>

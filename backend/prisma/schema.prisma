@@ -1,0 +1,1187 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String           @id @default(uuid())
+  googleId         String?          @unique
+  email            String?          @unique
+  telegramId       String?          @unique
+  telegramChatId   String?
+  whatsappId       String?          @unique
+  slackId          String?          @unique
+  discordId        String?          @unique
+  username         String?          @unique
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  status           UserStatus       @default(ACTIVE)
+
+  requireBiometricsAlways Boolean   @default(false)
+  reputationPoints Int              @default(0)
+
+  /// SHA-256 of (user agent + screen dimensions + platform). Used to block
+  /// self-referral rings; never used for cross-site tracking.
+  deviceFingerprint String?
+  /// Attribution captured at signup, carried through from the entry link.
+  signupSrc         String?
+  signupCampaign    String?
+
+  smartWallet      SmartWallet?
+  referralsSent    Referral[]       @relation("Referrer")
+  referralsRecv    Referral[]       @relation("Referee")
+  transactions     RampTransaction[]
+  auditEvents      AuditEvent[]
+  sessionKeys      SessionKey[]
+  subscriptions    Subscription[]   @relation("Subscriber")
+  referralCode     ReferralCode?
+  rewardPoints     RewardPoint[]
+  notifications    Notification[]
+  contacts         Contact[]
+  socialNodes      SocialNode[]
+  paymentRequests  PaymentRequest[]
+  redEnvelopes     RedEnvelope[]
+  createdPools     GroupPool[]      @relation("PoolCreator")
+  poolMemberships  PoolMember[]
+  loanApplications LoanApplication[]
+  loanVotes        LoanVote[]
+  createdSplits    BillSplit[]      @relation("SplitCreator")
+  splitParticipations SplitParticipant[]
+  notificationPreferences UserNotificationPreference?
+  notificationLogs        NotificationLog[]
+  activityLogs       UserActivityLog[]
+  insightCache       UserInsightCache?
+  badges             UserBadge[]
+  funnelEvents       FunnelEvent[]
+  deposits           Deposit[]
+  passkeyCredentials PasskeyCredential[]
+  refreshTokens      RefreshToken[]
+  vaultDeposits      VaultDeposit[]
+  vaultWithdrawals   VaultWithdrawal[]
+  interactionStreak  InteractionStreak?
+  adminNotes         AdminNote[]
+  customTokens       UserToken[]
+}
+
+/// A token a user asked us to watch for them, by contract address.
+///
+/// The deposit listener already sees Transfer events for every token arriving
+/// at a user's vault — it filters on the recipient, not on the token — and
+/// drops the ones it cannot identify, because it has no decimals for them and
+/// cannot vouch for the contract. A row here supplies both.
+///
+/// `symbol`, `name`, and `decimals` are read from the contract at add time
+/// rather than supplied by the user, so they describe what the contract
+/// actually says. They are still not trustworthy: any contract can claim any
+/// symbol. Resolution is by address wherever an address is available, and a
+/// symbol that collides with a built-in never wins — see `tokens.config.ts`.
+model UserToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Lowercased contract address. Lowercased so lookups need no checksum pass.
+  address   String
+  /// Kept per row so the same table serves additional chains unchanged.
+  chainId   Int
+
+  symbol    String
+  name      String
+  decimals  Int
+
+  /// Last on-chain balance, raw. Refreshed daily by reconciliation.
+  ///
+  /// Deposits that arrived before the token was added are never backfilled as
+  /// ledger entries — we did not record them and will not invent them. Reading
+  /// the balance from chain sidesteps that entirely: it is authoritative
+  /// regardless of what history we hold. Stored as a string so an unknown-scale
+  /// token stays lossless, matching `Deposit.amountRaw`.
+  lastBalanceRaw  String?
+  balanceSyncedAt DateTime?
+
+  /// Soft-removed rather than deleted, so a token a user removes does not
+  /// silently reappear the next time a deposit for it arrives.
+  removedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, chainId, address])
+  @@index([chainId, address])
+  @@index([userId])
+}
+
+enum UserStatus {
+  ACTIVE
+  BLACKLISTED
+}
+
+enum UserActivityAction {
+  USER_REGISTERED
+  ONBOARDING_COMPLETED
+  WALLET_CREATED
+  PASSKEY_REGISTERED
+  SESSION_KEY_CREATED
+  TRANSFER_SENT
+  TRANSFER_RECEIVED
+  REQUEST_CREATED
+  REQUEST_PAID
+  REQUEST_CANCELLED
+  VAULT_DEPOSIT
+  VAULT_WITHDRAW
+  POOL_DEPOSIT
+  POOL_WITHDRAW
+  LOAN_REQUESTED
+  LOAN_APPROVED
+  LOAN_BORROWED
+  LOAN_REPAID
+  LOAN_DEFAULTED
+  ENVELOPE_CREATED
+  ENVELOPE_CLAIMED
+  ENVELOPE_CANCELLED
+  SPLIT_CREATED
+  SPLIT_PAID
+  CONTACT_ADDED
+  BADGE_EARNED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_PAID
+  SUBSCRIPTION_CANCELLED
+  REFERRAL_REGISTERED
+  REFERRAL_REWARDED
+  FIAT_DEPOSIT
+  FIAT_WITHDRAW
+  ACCOUNT_LINKED
+  ACCOUNT_UNLINKED
+  /// Inbound transfer from a wallet outside VeriAgent Pay (MetaMask etc.).
+  /// Distinct from TRANSFER_RECEIVED, which is a VeriAgent-to-VeriAgent send.
+  DEPOSIT_RECEIVED
+  /// Vault ownership was rotated via social recovery.
+  RECOVERY_EXECUTED
+}
+
+model UserActivityLog {
+  id        String             @id @default(uuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    UserActivityAction
+  amount    Decimal?
+  token     String?
+  txHash    String?
+  metadata  Json?
+  createdAt DateTime           @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([txHash])
+}
+
+/// An inbound token transfer from outside VeriAgent Pay, credited to a user's
+/// smart account. Written only for transfers whose sender is NOT one of our own
+/// smart wallets — internal sends are already recorded as TRANSFER_RECEIVED.
+model Deposit {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Destination smart account (may still be counterfactual/undeployed).
+  toAddress    String
+  fromAddress  String
+  tokenAddress String
+  /// Resolved symbol when the token is in our registry, else null.
+  tokenSymbol  String?
+  /// Raw on-chain value; kept exact so unknown-decimal tokens stay lossless.
+  amountRaw    String
+  /// Human-readable amount, only set once decimals are known.
+  amount       Decimal?
+  decimals     Int?
+
+  txHash       String
+  logIndex     Int
+  blockNumber  BigInt
+  blockHash    String
+  /// Block timestamp, not ingestion time.
+  occurredAt   DateTime
+
+  /// PENDING → seen but not yet finalized. CONFIRMED → at/below finalized head.
+  /// ORPHANED → the containing block was replaced by a reorg.
+  status       DepositStatus @default(CONFIRMED)
+  /// False when the token is not in our registry; surfaced but not credited.
+  recognized   Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+
+  /// A log is uniquely identified by its transaction and position within it.
+  /// This is the idempotency guarantee for re-scanned block ranges.
+  @@unique([txHash, logIndex])
+  @@index([userId, occurredAt])
+  @@index([toAddress])
+  @@index([blockNumber])
+  @@index([status])
+}
+
+enum DepositStatus {
+  PENDING
+  CONFIRMED
+  ORPHANED
+}
+
+/// Resumable cursor for chain indexers. Without this, a restart either
+/// re-scans from genesis or silently skips the blocks it was down for.
+model IndexerCursor {
+  id              String   @id @default(uuid())
+  /// e.g. "erc20-deposits". One row per indexer per chain.
+  name            String
+  chainId         Int
+  lastBlock       BigInt
+  /// Hash of lastBlock, used to detect a reorg beneath the cursor.
+  lastBlockHash   String?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([name, chainId])
+}
+
+/// Records when a vault ownership was rotated via social recovery.
+/// Used to identify which user was displaced and track refund status.
+model RecoveryLog {
+  id               String   @id @default(uuid())
+  vaultAddress     String
+  /// User who was displaced (looked up from SmartWallet at event time).
+  displacedUserId  String?
+  oldOwnerKeyHash  String
+  newOwnerKeyHash  String
+  txHash           String   @unique
+  blockNumber      BigInt
+  /// Whether the displaced user has been refunded.
+  refunded         Boolean  @default(false)
+  refundTxHash     String?
+  refundAmount     Decimal?
+  refundToken      String?
+  createdAt        DateTime @default(now())
+
+  @@index([displacedUserId])
+  @@index([vaultAddress])
+  @@index([refunded])
+}
+
+model UserInsightCache {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportMarkdown String
+  generatedAt    DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+}
+
+model SmartWallet {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address              String   @unique // CREATE2 Address
+  publicKeyX           String   // P-256 coordinate string
+  publicKeyY           String   // P-256 coordinate string
+  isDeployed           Boolean  @default(false)
+  salt                 String   // Salt used in CREATE2 deployment
+  /// Factory which authoritatively produced `address`. Legacy rows are null.
+  factoryAddress       String?
+  /// CREATE2 scheme used for this address; persisted to make upgrades auditable.
+  derivationVersion    String?
+  createdAt            DateTime @default(now())
+}
+
+model RampTransaction {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  provider         RampProvider      // enum: THIRDWEB, DEXTOPUS, STRIPE_BRIDGE, CROSSMINT
+  type             TransactionType   // enum: DEPOSIT, WITHDRAWAL
+  amountFiat       Float
+  fiatCurrency     String
+  amountToken      Float
+  tokenAddress     String
+  status           TransactionStatus // enum: PENDING, COMPLETED, FAILED, EXPIRED
+  externalTxId     String            @unique // ID returned by the provider
+  chainTxHash      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model ReferralCode {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code        String   @unique
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Referral {
+  id          String   @id @default(uuid())
+  referrerId  String
+  referrer    User     @relation("Referrer", fields: [referrerId], references: [id])
+  refereeId   String   @unique
+  referee     User     @relation("Referee", fields: [refereeId], references: [id])
+  /// Total points awarded to the referrer so far across all milestones.
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  // --- Staged activation milestones ---
+  // Points are released progressively so Sybil signups earn nothing.
+  walletCreated        Boolean   @default(false)
+  walletCreatedAt      DateTime?
+  firstSendCompleted   Boolean   @default(false)
+  firstSendAt          DateTime?
+  depositRetainedD7    Boolean   @default(false)
+  milestoneCompletedAt DateTime?
+
+  // --- Attribution ---
+  src        String?
+  campaign   String?
+  partner    String?
+  channel    String?
+
+  @@index([referrerId, walletCreated])
+  @@index([firstSendCompleted, depositRetainedD7])
+}
+
+/// Append-only growth funnel telemetry. One row per (event, user, dedupeKey).
+/// Powers the weekly growth review and retention cohorts.
+model FunnelEvent {
+  id        String   @id @default(uuid())
+  /// e.g. "campaign_delivered", "passkey_completed", "retention.d7_active"
+  event     String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  campaign  String?
+  partner   String?
+  channel   String?
+  src       String?
+  /// Idempotency guard: same event may only be recorded once per key.
+  dedupeKey String?  @unique
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([campaign, event])
+  @@index([userId, event])
+  @@index([src, event, createdAt])
+}
+
+model RewardPoint {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  points      Int
+  reason      String   // 'REFERRAL_BONUS', 'DEPOSIT_REWARD', 'PAYMENT_STREAK'
+  txHash      String?
+  createdAt   DateTime @default(now())
+}
+
+model Subscription {
+  id               String   @id @default(uuid())
+  subscriberId     String
+  subscriber       User     @relation("Subscriber", fields: [subscriberId], references: [id])
+  recipientAddress String
+  recipientHandle  String?
+  amountUSD        Decimal
+  intervalDays     Int      @default(30) // e.g. 30 for monthly, 7 for weekly
+  nextPaymentAt    DateTime
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  payments         SubscriptionPayment[]
+
+  @@index([nextPaymentAt, isActive])
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid())
+  timestamp   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String   // 'PAYMENT_SENT', 'SESSION_CREATED', 'POLICY_BLOCKED', etc.
+  details     Json
+  txHash      String?
+  chainId     Int?
+  status      String   // 'SUCCESS', 'FAILED', 'BLOCKED'
+
+  @@index([userId, timestamp])
+  @@index([txHash])
+}
+
+model SessionKey {
+  id                    String           @id @default(uuid())
+  userId                String
+  user                  User             @relation(fields: [userId], references: [id])
+  keyHash               String           @unique
+  encryptedKey          String           // encrypted session private key
+  encryptedSymmetricKey String?          // encrypted symmetric key
+  credentialId          String           // passkey credential used to encrypt
+  dailyLimitUSD         Decimal
+  perTxLimitUSD         Decimal
+  expiryAt              DateTime
+  expiryNoticeSentAt    DateTime?
+  /// When the on-chain SessionRegistry grant landed. Null means the key exists
+  /// in the database but has no grant, so `executeWithLocalSession` would
+  /// revert — the backend must not treat it as usable until this is set.
+  activatedAt           DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime         @default(now())
+  spending              SpendingRecord[]
+
+  @@index([userId])
+  @@index([keyHash])
+  @@index([expiryAt, expiryNoticeSentAt])
+}
+
+model SpendingRecord {
+  id           String     @id @default(uuid())
+  sessionKeyId String
+  sessionKey   SessionKey @relation(fields: [sessionKeyId], references: [id])
+  amountUSD    Decimal
+  txHash       String
+  timestamp    DateTime   @default(now())
+
+  @@index([sessionKeyId, timestamp])
+}
+
+model GrantMetrics {
+  id                  String   @id @default(uuid())
+  period              String   @unique // e.g. '2026-W29' or '2026-07'
+  uniqueActiveUsers   Int      @default(0)
+  totalTvlUSD         Decimal  @default(0)
+  totalInteractions   Int      @default(0)
+  totalGasSponsored   Decimal  @default(0)
+  gasRebateEligible   Decimal  @default(0)
+  updatedAt           DateTime @updatedAt
+}
+
+model GasRebate {
+  id           String   @id @default(uuid())
+  weekId       String   // e.g. '2026-W29'
+  walletAddress String
+  gasSpentNative Decimal
+  rebateUSDC   Decimal
+  status       String   // 'PENDING', 'PAID', 'EXPIRED'
+  createdAt    DateTime @default(now())
+
+  @@index([walletAddress, weekId])
+}
+
+enum RampProvider {
+  THIRDWEB
+  DEXTOPUS
+  STRIPE_BRIDGE
+  CROSSMINT
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, read])
+}
+
+enum NotificationType {
+  TRANSACTION_SENT
+  TRANSACTION_RECEIVED
+  YIELD_EARNED
+  SPLIT_REQUEST
+  ENVELOPE_CLAIMED
+  REFERRAL_REWARD
+  SUBSCRIPTION_DUE
+  POOL_INVITATION
+  POOL_LOAN_REQUESTED
+  POOL_LOAN_APPROVED
+  POOL_LOAN_REPAID
+  BADGE_EARNED
+  VAULT_DEPOSIT
+  VAULT_WITHDRAWAL
+  ENVELOPE_CREATED
+  MONEY_RECEIVED
+  MONEY_SENT
+  SUBSCRIPTION_SUCCESS
+  SUBSCRIPTION_FAILED
+  ADMIN_ALERT
+  SPLIT_PAID
+  SPLIT_COMPLETED
+  SYSTEM
+}
+
+model Contact {
+  id            String   @id @default(uuid())
+  userId        String
+  name          String
+  platform      String   // "telegram" | "whatsapp" | "discord" | "slack" | "phone"
+  identifier    String   // e.g. "@bob", "+15551234567"
+  walletAddress String?  // auto-resolved when contact registers
+  sendCount     Int      @default(0)
+  lastSentAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@unique([userId, platform, identifier])
+  @@unique([userId, walletAddress])
+}
+
+model SocialNode {
+  id             String   @id @default(uuid())
+  userId         String
+  platform       String   // "telegram" | "whatsapp" | "discord" | "slack"
+  platformUserId String
+  username       String?
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([platform, platformUserId])
+  @@index([userId])
+}
+
+model VerificationCode {
+  id         String   @id @default(uuid())
+  userId     String
+  platform   String   // "telegram" | "whatsapp"
+  code       String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  /// Set the moment a code is redeemed. Codes are strictly single-use:
+  /// without this a valid code could be replayed until it expired.
+  usedAt     DateTime?
+  /// Platform account the code was redeemed by, for audit.
+  usedBy     String?
+
+  @@index([code])
+  @@index([userId, platform])
+  @@index([expiresAt])
+}
+
+model PaymentRequest {
+  id                  String        @id @default(uuid())
+  requesterId         String
+  recipientId         String?       // wallet address or user ID (if registered)
+  recipientIdentifier String        // e.g. "@bob", "+1234567890"
+  token               String        // "USDC", "USDT", "BOT"
+  amount              Float
+  note                String?
+  status              RequestStatus @default(PENDING)
+  txHash              String?       // filled when paid on-chain
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  expiresAt           DateTime?     // optional auto-cancel after period
+  lastRemindedAt      DateTime?     // tracks last nudge notification
+
+  requester           User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  @@index([recipientId])
+  @@index([requesterId])
+}
+
+enum RequestStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+model RedEnvelope {
+  id                String         @id @default(uuid())
+  creatorId         String
+  token             String         // "USDC", "USDT", "BOT"
+  totalAmount       Float
+  numRecipients     Int
+  type              EnvelopeKind   @default(OPEN)
+  isRandom          Boolean        @default(true)
+  customRecipientId String?        // user ID or identifier if CUSTOM
+  status            EnvelopeStatus @default(ACTIVE)
+  remainingBalance  Float
+  remainingClaims   Int
+  message           String?
+  onChainId         Int?           // Smart contract envelope ID
+  txHash            String?        // Creation transaction hash
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  creator           User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  claims            EnvelopeClaim[]
+  @@index([creatorId])
+  @@index([onChainId])
+}
+
+model EnvelopeClaim {
+  id             String      @id @default(uuid())
+  envelopeId     String
+  claimerAddress String
+  amount         Float
+  createdAt      DateTime    @default(now())
+
+  envelope       RedEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  @@index([envelopeId])
+}
+
+enum EnvelopeKind {
+  OPEN
+  CUSTOM
+}
+
+enum EnvelopeStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  COMPLETED
+}
+
+model GroupPool {
+  id               String            @id @default(uuid())
+  name             String
+  creatorId        String
+  token            String            // "USDC", "USDT", "BOT"
+  poolBalance      Float             @default(0)
+  /// The pool's id in GroupLendingPool. Null means the pool has no on-chain
+  /// existence, so its funds cannot be custodied or withdrawn — deposits to
+  /// such a pool are unrecoverable, which is why creation now requires it.
+  onChainPoolId    Int?              @unique
+  /// Annual simple interest on loans, in basis points. Agreed once at creation
+  /// and fixed for the pool's life, so a borrower's cost cannot be changed
+  /// after they have borrowed.
+  ///
+  /// The contract charges none: `repayLoan` requires principal plus any late
+  /// fee. Interest is added to the amount repaid, and the contract credits
+  /// everything above the late fee to `poolBalance` — so it reaches the lenders
+  /// through the share price, in proportion to what each put in.
+  interestRateBps  Int               @default(0)
+  /// Set when the creator closes the pool and every member's balance has been
+  /// returned. Terminal: a closed pool takes no deposits and issues no loans.
+  closedAt         DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  creator          User              @relation("PoolCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members          PoolMember[]
+  loans            LoanApplication[]
+  @@index([creatorId])
+}
+
+model PoolMember {
+  id               String            @id @default(uuid())
+  poolId           String
+  userId           String?
+  userIdentifier   String            // e.g. "@bob", "+1234567890"
+  depositedAmount  Float             @default(0)
+  reputationPoints Int               @default(0)
+  joinedAt         DateTime          @default(now())
+
+  pool             GroupPool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([poolId])
+  @@index([userId])
+  @@unique([poolId, userIdentifier])
+}
+
+model LoanApplication {
+  id               String            @id @default(uuid())
+  poolId           String
+  borrowerId       String
+  amount           Float
+  purpose          String?
+  durationDays     Int
+  status           LoanStatus        @default(PENDING)
+  approveVotes     Int               @default(0)
+  rejectVotes      Int               @default(0)
+  isExtension      Boolean           @default(false)
+  targetLoanId     String?
+  /// Ids assigned by GroupLendingPool. The contract numbers loan *requests* and
+  /// disbursed *loans* separately — `voteOnLoan` disburses on the threshold
+  /// vote and mints a loan id then — so both are kept to address it later.
+  onChainRequestId Int?
+  onChainLoanId    Int?
+  txHash           String?
+  repaymentDeadline DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  pool             GroupPool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  borrower         User              @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+  votes            LoanVote[]
+  @@index([poolId])
+  @@index([borrowerId])
+}
+
+model LoanVote {
+  id               String            @id @default(uuid())
+  loanId           String
+  voterId          String
+  approve          Boolean
+  createdAt        DateTime          @default(now())
+
+  loan             LoanApplication   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  voter            User              @relation(fields: [voterId], references: [id], onDelete: Cascade)
+
+  @@unique([loanId, voterId])
+  @@index([loanId])
+  @@index([voterId])
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+  REPAID
+  DEFAULTED
+}
+
+model UserNotificationPreference {
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  socialProof             Boolean  @default(true)
+  spending                Boolean  @default(true)
+  saving                  Boolean  @default(true)
+  virality                Boolean  @default(true)
+  reputation              Boolean  @default(true)
+
+  // Platform-specific notification toggles
+  telegramNotifications   Boolean  @default(true)
+  whatsappNotifications   Boolean  @default(true)
+  discordNotifications    Boolean  @default(true)
+  slackNotifications      Boolean  @default(true)
+  webPushNotifications    Boolean  @default(true)
+
+  updatedAt               DateTime @updatedAt
+
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationLog {
+  id              String   @id @default(uuid())
+  userId          String
+  category        String   // "socialProof", "spending", "saving", "virality", "reputation"
+  notificationType String
+  sentAt          DateTime @default(now())
+  metadata        Json?
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, category])
+  @@index([sentAt])
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  FINANCE
+  SUPPORT
+  VIEWER
+}
+
+model Admin {
+  id          String            @id @default(uuid())
+  name        String
+  email       String?           @unique
+  googleId    String?           @unique
+  role        AdminRole         @default(SUPER_ADMIN)
+  createdAt   DateTime          @default(now())
+  identifiers AdminIdentifier[]
+  adminNotes  AdminNote[]
+  auditLogs   AdminAuditLog[]
+}
+
+model AdminIdentifier {
+  id        String   @id @default(uuid())
+  adminId   String
+  platform  String   // "telegram", "whatsapp", "discord", "slack", "phone", "email"
+  value     String   // e.g., "@alice", "+1234567890", "123456789"
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  @@unique([platform, value])
+}
+
+model AdminNote {
+  id        String   @id @default(uuid())
+  userId    String
+  adminId   String
+  note      String   @db.Text
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}
+
+model AdminOtp {
+  id         String   @id @default(uuid())
+  identifier String
+  codeHash   String
+  /// Failed verification attempts against this code. The code is invalidated at
+  /// 5, which is what bounds a brute-force search of the 10^6 space (SEC-015).
+  attempts   Int      @default(0)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  @@index([identifier, expiresAt])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String?
+  adminEmail String?
+  action     String   // e.g., "FREEZE_ACCOUNT", "PROPOSE_FEE", "PAUSE_FEATURE"
+  target     String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  admin      Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  @@index([adminId, createdAt])
+  @@index([action, createdAt])
+}
+
+model GlobalConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model ShortLink {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  kind         String
+  senderUserId String?
+  targetUserId String?
+  toAddress    String?
+  amount       Float?
+  token        String?
+  fromUser     String?
+  platform     String?
+  envelopeId   String?
+  merkleProof  String?   @db.Text
+  status       String    @default("ACTIVE")
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  claimedAt    DateTime?
+  claimedBy    String?
+  /// Transaction that originally funded the social-payment escrow.
+  fundingTxHash String?
+  claimTxHash  String?
+  clickCount   Int       @default(0)
+
+  // --- Campaign attribution (UTM-style) ---
+  src        String?
+  campaign   String?
+  partner    String?
+  channel    String?
+  refCode    String?
+
+  @@index([code])
+  @@index([kind, status])
+  @@index([targetUserId])
+  @@index([campaign, createdAt])
+  @@index([src, createdAt])
+}
+
+model PendingClaim {
+  id           String   @id @default(uuid())
+  userId       String
+  type         String   // "ENVELOPE_CLAIM" | "ESCROW_CLAIM" | "AIRDROP_CLAIM"
+  payload      Json
+  status       String   @default("PENDING") // "PENDING" | "COMPLETED" | "FAILED"
+  retries      Int      @default(0)
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, retries])
+  @@index([userId])
+}
+
+/// Public "drop" envelopes anyone can claim from a shared link.
+/// Distinct from {@link RedEnvelope}, which is scoped to a chat/group.
+model PublicEnvelope {
+  id               String    @id @default(uuid())
+  creatorId        String
+  /// Idempotency key for system-created drops. Manual drops leave this unset.
+  scheduleKey      String?   @unique
+  token            String    @default("USDC")
+  totalAmount      Float
+  remainingBalance Float
+  maxClaims        Int
+  remainingClaims  Int
+  status           String    @default("ACTIVE")
+  createdAt        DateTime  @default(now())
+
+  claims           PublicEnvelopeClaim[]
+
+  @@index([status, createdAt])
+  @@index([creatorId])
+}
+
+model PublicEnvelopeClaim {
+  id             String   @id @default(uuid())
+  envelopeId     String
+  envelope       PublicEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  claimerAddress String
+  amount         Float
+  txHash         String?
+  createdAt      DateTime @default(now())
+
+  /// One claim per wallet per envelope.
+  @@unique([envelopeId, claimerAddress])
+  @@index([claimerAddress])
+}
+
+/// Community-managed yield vault listings.
+model ManagedVault {
+  id                String   @id @default(uuid())
+  name              String
+  symbol            String
+  managerAddress    String
+  token             String   @default("USDC")
+  apy               Float    @default(0)
+  performanceFeeBps Int      @default(2000)
+  totalDeposits     Float    @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([apy])
+  @@index([managerAddress])
+}
+
+/// One airdrop claim per wallet, enforced by the unique constraint.
+model AirdropClaim {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  wallet       String   @unique
+  rewardAmount Float
+  vestingDays  Int      @default(30)
+  unlockDate   DateTime
+  claimedAt    DateTime @default(now())
+
+  @@index([unlockDate])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserBadge {
+  id          String   @id @default(uuid())
+  userId      String
+  badgeId     String   // "b-top-ref", "b-high-rep", "b-yield-pioneer", etc.
+  unlockedAt  DateTime @default(now())
+  /// Future NFT delivery lifecycle for campaign badges.
+  nftStatus   String   @default("NOT_MINTED")
+  nftContractAddress String?
+  nftTokenId  String?
+  nftTxHash   String?
+  mintedAt    DateTime?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@index([badgeId, nftStatus])
+}
+
+model BillSplit {
+  id               String            @id @default(uuid())
+  creatorId        String
+  description      String?
+  token            String            @default("USDC") // "USDC", "USDT", "BOT"
+  totalAmount      Float
+  contractSplitId  String?           // on-chain split ID from SocialPayments contract
+  status           BillSplitStatus   @default(PENDING)
+  amountCollected  Float             @default(0)
+  deadline         DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  creator          User              @relation("SplitCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  participants     SplitParticipant[]
+  @@index([creatorId])
+  @@index([status])
+}
+
+model SplitParticipant {
+  id               String            @id @default(uuid())
+  splitId          String
+  userId           String?
+  userIdentifier   String            // e.g. "@alice", "+1234567890"
+  shareAmount      Float
+  hasPaid          Boolean           @default(false)
+  paidAt           DateTime?
+  txHash           String?
+
+  split            BillSplit         @relation(fields: [splitId], references: [id], onDelete: Cascade)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([splitId])
+  @@index([userId])
+  @@index([userIdentifier])
+}
+
+enum BillSplitStatus {
+  PENDING
+  PARTIAL
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+model PasskeyCredential {
+  id               String   @id @default(uuid())
+  userId           String
+  lookupHash       String?  @unique // SHA-256(credentialId) — blind index for lookup
+  credentialId     String?  @unique // DEPRECATED: plaintext, kept for migration only
+  encryptedPayload String?  // AES-256-GCM encrypted {publicKeyX, publicKeyY, walletAddress}
+  wrappedDek       String?  // KEK-encrypted DEK (per-record data encryption key)
+  kekVersion       Int      @default(0) // 0 = legacy unencrypted, 1+ = envelope encrypted
+  iv               String?  // 12-byte GCM nonce, hex
+  authTag          String?  // 16-byte GCM auth tag, hex
+  publicKeyX       String?  // DEPRECATED: plaintext, kept for migration only
+  publicKeyY       String?  // DEPRECATED: plaintext, kept for migration only
+  counter          Int      @default(0)
+  credentialPublicKey Bytes?
+  transports       String[] @default([])
+  deviceType       String?
+  backedUp         Boolean  @default(false)
+  backupStateKnown Boolean  @default(false)
+  label            String?
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([lookupHash])
+}
+
+model WebAuthnChallenge {
+  id        String   @id @default(uuid())
+  challenge String   @unique
+  flow      String
+  userId    String?
+  context   Json?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([userId, flow])
+}
+
+model SubscriptionPayment {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  amountUSD      Decimal
+  txHash         String
+  status         String       @default("SUCCESS")
+  createdAt      DateTime     @default(now())
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  @@index([subscriptionId, createdAt])
+}
+
+model VaultDeposit {
+  id           String   @id @default(uuid())
+  userId       String
+  vaultId      String
+  amount       Decimal
+  token        String   @default("USDC")
+  sharesMinted Decimal?
+  txHash       String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}
+
+model VaultWithdrawal {
+  id             String   @id @default(uuid())
+  userId         String
+  vaultId        String
+  amount         Decimal
+  token          String   @default("USDC")
+  sharesBurned   Decimal?
+  txHash         String?
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}
+
+model InteractionStreak {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  currentStreak       Int       @default(1)
+  longestStreak       Int       @default(1)
+  lastActiveAt        DateTime  @default(now())
+  lastInteractionType String?
+  /// One missed calendar day can be preserved once per calendar month.
+  lastGracePassUsedAt DateTime?
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// A (contract, function) pair that a user's session key is permitted to reach.
+///
+/// This is the canonical list the passkey policy-refresh grants. It exists
+/// because protocol contracts get redeployed: a vault's allowlist is stamped in
+/// at creation and `PayVaultFactory` has no setter, so when an address changes,
+/// every existing vault refuses the new one until its owner re-authorizes.
+/// Holding the list here means adding a contract is an operational change, not
+/// a code deploy.
+///
+/// It grants nothing by itself. `setVaultCallPolicy` is `onlyVault` and the
+/// vault refuses every non-passkey path to its spending module, so only the
+/// wallet owner can widen their own permissions — an admin can propose the set,
+/// never impose it.
+model SessionCallPolicyEntry {
+  id        String   @id @default(uuid())
+  /// Human-readable, e.g. "GroupLendingPool.createPool".
+  label     String
+  /// Contract address, lowercased so lookups need no checksum pass.
+  target    String
+  /// Full function signature, kept so the selector can be re-derived and audited.
+  signature String
+  /// 4-byte selector, derived from `signature` at write time.
+  selector  String
+  /// False revokes the pair on the next refresh rather than deleting history.
+  allowed   Boolean  @default(true)
+
+  /// Admin who last touched this row, for the audit trail.
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([target, selector])
+  @@index([allowed])
+}

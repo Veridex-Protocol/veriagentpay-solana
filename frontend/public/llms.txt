@@ -1,0 +1,37 @@
+# VeriAgent Pay
+
+> Multi-chain social payment protocol and AI yield automation. Send, split, and save stablecoins inside Telegram, WhatsApp, Discord, and Slack with $0 gas fees, no seed phrases, and biometric passkey security.
+
+## Overview
+VeriAgent Pay is a self-custodial smart wallet and social payments engine. It enables users to transact with USDT and stablecoins across major chat applications using WebAuthn biometric passkeys (Touch ID, Face ID, Android Biometrics, Windows Hello) and session keys without holding native gas tokens.
+
+- **Website**: https://veriagentpay.xyz
+- **Web App**: https://veriagentpay.xyz/dashboard
+- **Testnet App**: https://testnet.veriagentpay.xyz
+- **Telegram Bot**: https://t.me/VeriAgentPayBot
+- **Telegram Community**: https://t.me/VeriagentPay
+- **Twitter / X**: https://x.com/veriagentpay
+- **Documentation**: https://veriagentpay.xyz/docs
+
+## Key Features
+
+- **Chat Payments**: Send and request funds directly within Telegram, WhatsApp, Discord, and Slack with instant receipts.
+- **Biometric Passkey Wallets**: ERC-4337 smart accounts secured by WebAuthn P-256 signatures. No 12-word seed phrases to store or lose.
+- **Zero Gas Fees ($0.00)**: All user transactions are gasless and sponsored via fee-bump relayers and paymasters on BOTChain and Stellar.
+- **Group Lending & Pools**: Collaborative peer-to-peer pools for group savings, expense sharing, and democratic loan approvals.
+- **Bill Splits**: Split dinner, rent, or group expenses seamlessly across chat groups with live payment tracking.
+- **Lucky Red Envelopes**: Digital cash packets sent into chat channels for friends and community members to claim instantly.
+- **Auto-Save Yield Vaults**: Automated savings strategies earning verified variable APY attested cryptographically via Veridex zkTLS.
+- **AI Agent Intent Parsing**: Natural language payment commands (e.g., "Send 50 USDT to @alice") parsed securely via AI agents.
+
+## Supported Networks & Assets
+
+- **BOTChain L1**: EVM-compatible settlement with sub-second finality.
+- **Stellar Network**: Soroban smart contracts and Stellar anchor fiat ramps.
+- **Tether USDT**: Primary 1:1 USD-backed stablecoin settlement.
+
+## Developer & Technical Resources
+
+- **Full LLM Documentation**: https://veriagentpay.xyz/llms-full.txt
+- **Sitemap**: https://veriagentpay.xyz/sitemap.xml
+- **Robots Policy**: https://veriagentpay.xyz/robots.txt

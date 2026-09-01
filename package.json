@@ -1,0 +1,46 @@
+{
+  "name": "@veriagent/solana",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "bun@1.2.21",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "packages/bigint-buffer",
+    "packages/chain-solana"
+  ],
+  "scripts": {
+    "build": "bun run packages:build && bun run backend:build && bun run frontend:build",
+    "backend:build": "bun run --cwd backend build",
+    "backend:test": "bun test --cwd backend",
+    "contracts:check": "cd contracts/anchor && cargo check --workspace --all-targets",
+    "contracts:test": "cd contracts/anchor && cargo test --workspace",
+    "check:standalone": "bun scripts/check-standalone.ts",
+    "frontend:build": "bun run --cwd frontend build",
+    "frontend:dev": "bun run --cwd frontend dev",
+    "packages:build": "bun run --cwd packages/chain-solana build",
+    "prisma:generate": "bun run --cwd backend prisma:generate",
+    "prisma:validate": "bun run --cwd backend prisma:validate",
+    "test": "bun test packages/chain-solana/test backend/src/chains/solana backend/src/identity/identity.salt.spec.ts backend/src/identity/identity.service.spec.ts",
+    "typecheck": "bun run packages:build && bun run backend:build && bun run --cwd frontend typecheck",
+    "verify": "bun run check:standalone && bun run prisma:validate && bun run prisma:generate && bun run typecheck && bun run test && bun run contracts:test"
+  },
+  "devDependencies": {
+    "@types/bun": "1.2.21",
+    "typescript": "5.9.2"
+  },
+  "overrides": {
+    "axios": "1.19.0",
+    "form-data": "4.0.6",
+    "protobufjs": "8.7.2",
+    "brace-expansion": "5.0.9",
+    "tmp": "0.2.7",
+    "bigint-buffer": "workspace:1.1.6",
+    "multer": "2.2.0",
+    "nanoid": "3.3.18",
+    "picomatch": "4.0.5",
+    "postcss": "8.5.26",
+    "sharp": "0.35.3",
+    "ws": "8.21.3"
+  }
+}

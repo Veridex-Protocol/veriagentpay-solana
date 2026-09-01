@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Contact" ADD COLUMN "sendCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Contact" ADD COLUMN "lastSentAt" TIMESTAMP(3);
