@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { MessageSquare, ArrowRight, Menu, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { OfficialLogoMark } from '../ui/OfficialBrand';
 
 interface LandingHeaderProps {
   theme?: 'dark' | 'light';
@@ -24,9 +25,7 @@ export function LandingHeader({ theme = 'dark', onToggleTheme }: LandingHeaderPr
       >
         {/* Brand Emblem */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="flex h-6 w-6 md:h-9 md:w-9 items-center justify-center rounded-xl bg-yellow-500 text-black font-extrabold text-sm md:text-lg shadow-md shadow-yellow-500/20 transition-transform group-hover:scale-105">
-            V
-          </div>
+          <OfficialLogoMark className="transition-transform group-hover:scale-105" size={36} withSquircle />
           <div className="flex flex-col">
             <span className={`font-extrabold text-sm md:text-base tracking-tight flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-950'}`}>
               VeriAgent <span className={isDark ? 'text-yellow-400 font-bold' : 'text-amber-700 font-bold'}>Pay</span>

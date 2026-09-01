@@ -14,6 +14,7 @@ import { MaintenanceBanner } from '../MaintenanceBanner';
 import { ShieldCheck, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { useTheme } from '../providers/ThemeProvider';
+import { OfficialLogoMark } from '../ui/OfficialBrand';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -114,7 +115,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           }`}>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 md:hidden">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F2D827] text-sm font-bold text-slate-950 shadow-md">V</div>
+              <OfficialLogoMark size={32} withSquircle />
               <div>
               </div>
             </div>

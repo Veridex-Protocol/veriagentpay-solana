@@ -255,9 +255,7 @@ function OnboardContent() {
         {/* App Header Badge */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-yellow-500 text-black font-extrabold flex items-center justify-center text-xl font-mono shadow-lg shadow-yellow-500/20">
-              V
-            </div>
+            <VeriAgentLogoMark size={40} withSquircle glow={false} />
             <div>
               <div className="va-auth-kicker flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-yellow-400" /> VERIAGENT PAY

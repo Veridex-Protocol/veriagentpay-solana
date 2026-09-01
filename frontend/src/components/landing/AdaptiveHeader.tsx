@@ -17,14 +17,10 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
+import { OfficialWordmark } from '../ui/OfficialBrand';
 
 export function Wordmark() {
-  return (
-    <span className="vf-wordmark" aria-label="VeriAgent Pay">
-      <i aria-hidden="true" />
-      VeriAgent <b>Pay</b>
-    </span>
-  );
+  return <OfficialWordmark className="vf-wordmark" width={174} />;
 }
 
 export function AdaptiveHeader() {

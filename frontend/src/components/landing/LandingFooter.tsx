@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Layers,
 } from 'lucide-react';
+import { OfficialLogoMark } from '../ui/OfficialBrand';
 
 interface LandingFooterProps {
   theme?: 'dark' | 'light';
@@ -30,9 +31,7 @@ export function LandingFooter({ theme = 'dark' }: LandingFooterProps) {
           {/* Brand & Descriptor (7 cols) */}
           <div className="lg:col-span-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-yellow-500 text-black font-extrabold flex items-center justify-center text-lg font-mono shadow-md shadow-yellow-500/20">
-                V
-              </div>
+              <OfficialLogoMark size={36} withSquircle />
               <span className={`font-extrabold text-xl tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>
                 VeriAgent <span className={isDark ? 'text-yellow-400' : 'text-amber-800'}>Pay</span>
               </span>
