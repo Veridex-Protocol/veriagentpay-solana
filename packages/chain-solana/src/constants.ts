@@ -1,7 +1,7 @@
 import { PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY } from "@solana/web3.js";
 
 export const VERIAGENT_PROGRAM_ID = new PublicKey(
-  "9QQaAmTaW6FR3q8qYnAoCFr8kcmKwPE99terRZ95txmR",
+  "AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV",
 );
 export const SECP256R1_PROGRAM_ID = new PublicKey(
   "Secp256r1SigVerify1111111111111111111111111",

@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 
 export const SOLANA_CHAIN_REF = process.env.SOLANA_CHAIN_REF || 'solana:devnet';
 export const SOLANA_PROGRAM_ID = new PublicKey(
-  process.env.SOLANA_PROGRAM_ID || '9QQaAmTaW6FR3q8qYnAoCFr8kcmKwPE99terRZ95txmR',
+  process.env.SOLANA_PROGRAM_ID || 'AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV',
 );
 export const SOLANA_USDC_MINT = new PublicKey(
   process.env.SOLANA_USDC_MINT || '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',

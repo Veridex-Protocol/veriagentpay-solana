@@ -6,6 +6,7 @@
       "name": "@veriagent/solana",
       "devDependencies": {
         "@types/bun": "1.2.21",
+        "@veriagent/chain-solana": "workspace:*",
         "typescript": "5.9.2",
       },
     },

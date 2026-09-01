@@ -1,0 +1,29 @@
+{
+  "network": "solana:devnet",
+  "clusterRpc": "https://api.devnet.solana.com",
+  "genesisHash": "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG",
+  "programId": "AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV",
+  "programDataAddress": "5vaEnz5ML2i8rTejV43kqQnG4nVVhLwSh8izPzpxsN8i",
+  "upgradeAuthority": "HgWVb3ews1JqcVTaXeJc86woYt4hnTTT2L2vvkNJ7ock",
+  "protocolConfig": "EyxAvRRVSL8gsrsHNBAZ5aymttzZuW2QUQwE9bm5fUWW",
+  "stablecoinMint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  "webauthn": {
+    "rpId": "veriagentpay.xyz",
+    "origin": "https://veriagentpay.xyz"
+  },
+  "artifact": {
+    "sha256": "e8f34a17ddc84da937234ba42087cc5d630141d126e66502745f24b6bbb2437f",
+    "dataLength": 490352,
+    "platformTools": "v1.57"
+  },
+  "deployment": {
+    "signature": "4rjw6abYAZ3ExmA7kr9C3FXsRCzTPppYVv7pjwh2xBbLqjMhVDQYcXEyTgRqrnLim8FE2yqcBTYoyw1uo7LRFga4",
+    "slot": 491660293,
+    "deployedAt": "2026-09-01T21:53:10Z"
+  },
+  "initialization": {
+    "signature": "4RuP6F9eCDEM9eRdxdGDNqpck4yTarCfSiyXfBAsLD7oCC3jXB2DLRcrQgbCY72FVkZrC1c8D9tXNr89BgjY1CGe",
+    "slot": 491672883,
+    "initializedAt": "2026-09-01T22:27:55Z"
+  }
+}

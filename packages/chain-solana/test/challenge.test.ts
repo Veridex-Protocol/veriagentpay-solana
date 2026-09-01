@@ -3,12 +3,23 @@ import { PublicKey } from "@solana/web3.js";
 
 import {
   bytesToHex,
+  clusterDomainFromGenesisHash,
   initializeVaultChallenge,
   transferChallenge,
   VERIAGENT_PROGRAM_ID,
 } from "../src";
 
 describe("program challenge parity", () => {
+  test("binds a cluster to the full genesis-hash string", () => {
+    expect(
+      bytesToHex(
+        clusterDomainFromGenesisHash(
+          "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG",
+        ),
+      ),
+    ).toBe("3292b0a10ea716fb77d5a951acef59c2c6b0dec5850e1f6feb40da7386991ffe");
+  });
+
   test("produces a stable transfer challenge fixture", () => {
     const challenge = transferChallenge({
       clusterDomain: new Uint8Array(32).fill(1),
@@ -24,7 +35,7 @@ describe("program challenge parity", () => {
     });
 
     expect(bytesToHex(challenge)).toBe(
-      "c067673dbd175cd306931261ef18b4818c9801eae75806f1567c6e8dc87b1d0c",
+      "65b21cd650129a80a4f0f1dcadcabfb4d64359057ba7f91d87e31e086d2ad883",
     );
   });
 
@@ -42,7 +53,7 @@ describe("program challenge parity", () => {
     });
 
     expect(bytesToHex(challenge)).toBe(
-      "03b1bd366a40c3f173c31c3b32fe46b4d795f278c8ddc4736ca1b17af8f01c5c",
+      "57ec07d353febe49b769543b3e6049ce55f8fa1fb15b24b5b46d2770c20e0af6",
     );
   });
 });

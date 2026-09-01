@@ -14,6 +14,7 @@
     "backend:build": "bun run --cwd backend build",
     "backend:test": "bun test --cwd backend",
     "contracts:check": "cd contracts/anchor && cargo check --workspace --all-targets",
+    "contracts:build:sbf": "cd contracts/anchor && cargo-build-sbf --manifest-path programs/veriagent_pay/Cargo.toml --tools-version v1.57",
     "contracts:test": "cd contracts/anchor && cargo test --workspace",
     "check:standalone": "bun scripts/check-standalone.ts",
     "frontend:build": "bun run --cwd frontend build",
@@ -21,12 +22,14 @@
     "packages:build": "bun run --cwd packages/chain-solana build",
     "prisma:generate": "bun run --cwd backend prisma:generate",
     "prisma:validate": "bun run --cwd backend prisma:validate",
+    "protocol:initialize:devnet": "bun scripts/initialize-protocol.ts",
     "test": "bun test packages/chain-solana/test backend/src/chains/solana backend/src/identity/identity.salt.spec.ts backend/src/identity/identity.service.spec.ts",
     "typecheck": "bun run packages:build && bun run backend:build && bun run --cwd frontend typecheck",
     "verify": "bun run check:standalone && bun run prisma:validate && bun run prisma:generate && bun run typecheck && bun run test && bun run contracts:test"
   },
   "devDependencies": {
     "@types/bun": "1.2.21",
+    "@veriagent/chain-solana": "workspace:*",
     "typescript": "5.9.2"
   },
   "overrides": {

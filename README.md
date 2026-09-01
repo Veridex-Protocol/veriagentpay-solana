@@ -24,3 +24,26 @@ dependency on the parent monorepo.
 bun install --frozen-lockfile
 bun run verify
 ```
+
+## Devnet deployment
+
+The verified deployment is recorded in `deployments/devnet.json`.
+
+- Program: `AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV`
+- Protocol config: `EyxAvRRVSL8gsrsHNBAZ5aymttzZuW2QUQwE9bm5fUWW`
+- Native devnet USDC: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`
+
+Builds use official SBF platform-tools `v1.57` because current transitive Rust
+dependencies require a newer compiler than the one bundled with Solana CLI
+2.2.1:
+
+```bash
+bun run contracts:build:sbf
+SOLANA_DEPLOYER_KEYPAIR=.keys/devnet-deployer.json \
+  RP_ID=veriagentpay.xyz \
+  WEBAUTHN_ORIGIN=https://veriagentpay.xyz \
+  bun run protocol:initialize:devnet
+```
+
+Deployment and fee-payer keypairs remain under the ignored `.keys/` and
+`contracts/anchor/target/` directories. They are never committed.

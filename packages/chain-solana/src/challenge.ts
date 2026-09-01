@@ -64,6 +64,14 @@ export function challenge(parts: readonly Uint8Array[]): Uint8Array {
   return sha256(concatBytes(CHALLENGE_DOMAIN, ...parts));
 }
 
+export function clusterDomainFromGenesisHash(genesisHash: string): Uint8Array {
+  const normalized = genesisHash.trim();
+  if (normalized.length === 0) {
+    throw new Error("Genesis hash is required for cluster-domain binding");
+  }
+  return sha256(new TextEncoder().encode(normalized));
+}
+
 export function initializeVaultChallenge(
   input: InitializeVaultChallengeInput,
 ): Uint8Array {

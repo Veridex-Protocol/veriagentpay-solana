@@ -13,6 +13,7 @@ import {
   createGrantSessionInstruction,
   createInitializeVaultAndGrantSessionInstruction,
   createPasskeyTransferInstruction,
+  clusterDomainFromGenesisHash,
   deriveSession,
   initializeVaultAndGrantSessionChallenge,
   sessionGrantChallenge,
@@ -343,7 +344,7 @@ function amountToAtomic(amount: number): bigint {
 function clusterDomain(): Uint8Array {
   const configured = process.env.SOLANA_CLUSTER_DOMAIN;
   if (!configured) throw new Error('SOLANA_CLUSTER_DOMAIN is required');
-  return new PublicKey(configured).toBytes();
+  return clusterDomainFromGenesisHash(configured);
 }
 
 function rootHashBytes(publicKeyX: string, publicKeyY: string): Buffer {

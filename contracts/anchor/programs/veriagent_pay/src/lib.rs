@@ -10,7 +10,7 @@ pub mod wallet;
 use protocol::*;
 use wallet::*;
 
-declare_id!("9QQaAmTaW6FR3q8qYnAoCFr8kcmKwPE99terRZ95txmR");
+declare_id!("AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV");
 
 #[program]
 pub mod veriagent_pay {

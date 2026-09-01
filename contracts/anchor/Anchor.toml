@@ -6,11 +6,14 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-veriagent_pay = "9QQaAmTaW6FR3q8qYnAoCFr8kcmKwPE99terRZ95txmR"
+veriagent_pay = "AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV"
+
+[programs.devnet]
+veriagent_pay = "AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV"
 
 [provider]
-cluster = "Localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "Devnet"
+wallet = "../../.keys/devnet-deployer.json"
 
 [test]
 startup_wait = 10000
