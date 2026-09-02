@@ -19,6 +19,11 @@ import { isProvisionalPlatformId } from '../../config/provisional-identity';
 import { RedisService } from '../../core/redis.service';
 import { sanitizeOutboundMessage } from '../../common/user-error.util';
 import { TELEGRAM_WEBHOOK_SECRET } from '../../config/secrets';
+import {
+  PendingTelegramLink,
+  normalizeTelegramUsername,
+  pendingTelegramLinkKey,
+} from '../../account/telegram-link-state';
 
 export interface TelegramBotCommands {
   command: string;
@@ -290,6 +295,29 @@ export class TelegramBotDriver implements OnModuleInit, OnModuleDestroy {
       }
 
       if (!address) {
+        const pendingLink = await this.getPendingTelegramLink(from.username);
+        if (pendingLink) {
+          const walletLabel = pendingLink.walletAddress
+            ? `…${pendingLink.walletAddress.slice(-8)}`
+            : 'your existing web wallet';
+          await this.sendMessageWithMarkup(
+            chatId,
+            `🔗 *Connect your existing VeriAgent wallet?*\n\n` +
+              `A web account requested to link this Telegram username.\n\n` +
+              `💳 *Wallet:* \`${walletLabel}\`\n\n` +
+              `Only continue if you started this request from the web app.`,
+            {
+              inline_keyboard: [[
+                {
+                  text: '✅ Connect Existing Wallet',
+                  callback_data: `link_existing:${pendingLink.code}`,
+                },
+              ]],
+            },
+          );
+          return;
+        }
+
         const onboardUrl = this.platformService.generateSignedDeepLink('/onboard', {
           platform: 'telegram',
           chatId,
@@ -324,7 +352,7 @@ export class TelegramBotDriver implements OnModuleInit, OnModuleDestroy {
         // Already onboarded — attribute the click, but never re-award.
         await this.applyAttributionForExistingUser(platformId, from.username, attribution);
         const responseText = `👋 Welcome back, *${firstName}*!\n\n` +
-          `Your VeriAgent Pay Smart Wallet is active and ready on BOTChain.\n\n` +
+          `Your VeriAgent Pay Smart Wallet is active and ready on Solana.\n\n` +
           `💳 *Smart Account Address:*\n\`${address}\`\n\n` +
           `Use the menu below or type commands to start sending payments!`;
 
@@ -453,6 +481,39 @@ export class TelegramBotDriver implements OnModuleInit, OnModuleDestroy {
       const user = await this.platformService.resolveCurrentUser({ platform: 'telegram', platformId: fromPlatformId, username: fromUsername });
 
       const cb = callbackData.replace(/^env:/, 'env_').replace(/^split:/, 'split_').replace(/^req:/, 'req_').replace(/^pool:/, 'pool_');
+
+      if (cb.startsWith('link_existing:')) {
+        const code = cb.slice('link_existing:'.length);
+        if (!/^\d{6}$/.test(code)) {
+          await this.httpClient.post(`/bot${token}/answerCallbackQuery`, {
+            callback_query_id: callbackQuery.id,
+            text: 'This wallet link is invalid. Request a new one from the web app.',
+            show_alert: true,
+          });
+          return;
+        }
+
+        const payload: SocialMessagePayload = {
+          platform: 'telegram',
+          platformId: fromPlatformId,
+          username: fromUsername,
+          text: `/verify ${code}`,
+        };
+        const result = await this.platformService.redeemLinkCode(payload, code);
+        const linked = result.includes('Successfully Linked') || result.includes('already linked');
+        if (linked && callbackQuery.from.username) {
+          await this.redis
+            .del(pendingTelegramLinkKey(callbackQuery.from.username))
+            .catch(() => undefined);
+        }
+        await this.httpClient.post(`/bot${token}/answerCallbackQuery`, {
+          callback_query_id: callbackQuery.id,
+          text: linked ? 'Existing wallet connected' : 'Wallet link could not be completed',
+          show_alert: !linked,
+        });
+        await this.editMessageText(chatId, messageId, result);
+        return;
+      }
 
       // Interactive pool actions flow
       if (cb.startsWith('pool_action:')) {
@@ -1418,6 +1479,21 @@ export class TelegramBotDriver implements OnModuleInit, OnModuleDestroy {
   // ─── WEBHOOK HANDLER (PRODUCTION) ──────────────────────────────────────────
 
   /**
+   * Accepts an authenticated Telegram update without holding the webhook open
+   * while database lookups and Bot API replies complete.
+   */
+  acceptWebhookUpdate(update: any): void {
+    setImmediate(() => {
+      this.processUpdate(update).catch((err: any) => {
+        this.logger.error(
+          `Error processing webhook update ${update?.update_id ?? 'unknown'}: ${err.message}`,
+          err.stack,
+        );
+      });
+    });
+  }
+
+  /**
    * Called by PlatformController when Telegram POSTs to /api/platform/telegram/webhook.
    * In production with TELEGRAM_WEBHOOK_URL set, this is the entry point.
    */
@@ -1748,5 +1824,17 @@ export class TelegramBotDriver implements OnModuleInit, OnModuleDestroy {
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async getPendingTelegramLink(username?: string): Promise<PendingTelegramLink | null> {
+    if (!username) return null;
+    const key = pendingTelegramLinkKey(normalizeTelegramUsername(username));
+    const pending = await this.redis.getJson<PendingTelegramLink>(key).catch(() => null);
+    if (!pending) return null;
+    if (Date.parse(pending.expiresAt) <= Date.now()) {
+      await this.redis.del(key).catch(() => undefined);
+      return null;
+    }
+    return pending;
   }
 }

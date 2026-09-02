@@ -1,0 +1,212 @@
+name: veriagent-solana
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  frontend:
+    image: veriagent-solana-frontend:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        BACKEND_INTERNAL_URL: http://backend:4000
+        NEXT_PUBLIC_API_URL: ""
+        NEXT_PUBLIC_BACKEND_URL: ""
+        NEXT_PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://veriagentpay.xyz}
+        NEXT_PUBLIC_APP_DOMAIN: ${RP_ID:-veriagentpay.xyz}
+        NEXT_PUBLIC_EXPLORER_URL: https://explorer.solana.com
+        NEXT_PUBLIC_RP_ID: ${RP_ID:-veriagentpay.xyz}
+        NEXT_PUBLIC_SOLANA_CLUSTER: ${SOLANA_CLUSTER:-devnet}
+        NEXT_PUBLIC_SOLANA_EXPLORER_URL: ${SOLANA_EXPLORER_URL:-https://explorer.solana.com}
+        NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-VeriAgentPayBot}
+        NEXT_PUBLIC_WS_URL: ""
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1777
+      - /app/frontend/.next/cache:uid=1000,gid=1000,mode=0755
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Set NEXTAUTH_SECRET in .env.docker}
+      NEXTAUTH_URL: ${PUBLIC_APP_URL:-https://veriagentpay.xyz}
+    ports:
+      - 127.0.0.1:${FRONTEND_PORT:-3000}:3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - edge
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 768M
+    logging: *default-logging
+
+  backend:
+    image: veriagent-solana-backend:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - ${ENV_FILE:-.env.docker}
+    environment:
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:?Set ADMIN_JWT_SECRET in .env.docker}
+      CREDENTIAL_KEK_CURRENT: ${CREDENTIAL_KEK_CURRENT:-1}
+      CREDENTIAL_KEK_V1: ${CREDENTIAL_KEK_V1:?Set CREDENTIAL_KEK_V1 in .env.docker}
+      DEEPLINK_SECRET: ${DEEPLINK_SECRET:?Set DEEPLINK_SECRET in .env.docker}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:?Set GOOGLE_OAUTH_CLIENT_ID in .env.docker}
+      INTERACTIVE_ACTION_SECRET: ${INTERACTIVE_ACTION_SECRET:?Set INTERACTIVE_ACTION_SECRET in .env.docker}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.docker}
+      NODE_ENV: ${BACKEND_NODE_ENV:-development}
+      PORT: "4000"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.docker}
+      RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY:?Set the temporary compatibility RELAYER_PRIVATE_KEY in .env.docker}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.docker}
+      RELAYER_MIN_BALANCE_LAMPORTS: ${RELAYER_MIN_BALANCE_LAMPORTS:-50000000}
+      SESSION_KEY_MASTER_SECRET: ${SESSION_KEY_MASTER_SECRET:?Set SESSION_KEY_MASTER_SECRET in .env.docker}
+      DEPOSIT_LISTENER_ENABLED: "false"
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://veriagentpay.xyz}
+      RP_ID: ${RP_ID:-veriagentpay.xyz}
+      SOLANA_CHAIN_REF: solana:${SOLANA_CLUSTER:-devnet}
+      SOLANA_CLUSTER: ${SOLANA_CLUSTER:-devnet}
+      SOLANA_CLUSTER_DOMAIN: ${SOLANA_CLUSTER_DOMAIN:-EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG}
+      SOLANA_COMMITMENT: ${SOLANA_COMMITMENT:-confirmed}
+      SOLANA_EXPLORER_URL: ${SOLANA_EXPLORER_URL:-https://explorer.solana.com}
+      SOLANA_FEE_PAYER_KEYPAIR_FILE: /run/secrets/solana_fee_payer
+      SOLANA_PROGRAM_ID: ${SOLANA_PROGRAM_ID:-AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      SOLANA_USDC_MINT: ${SOLANA_USDC_MINT:-4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU}
+    secrets:
+      - solana_fee_payer
+    ports:
+      - 127.0.0.1:${BACKEND_PORT:-4000}:4000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - edge
+      - data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 1G
+    logging: *default-logging
+
+  migrate:
+    image: veriagent-solana-backend:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.docker}
+    command:
+      - bunx
+      - prisma
+      - migrate
+      - deploy
+      - --schema=./prisma/schema.prisma
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - data
+    logging: *default-logging
+
+  db:
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-veriagent_solana}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.docker}
+      POSTGRES_USER: ${POSTGRES_USER:-veriagent}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.docker}
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$${REDIS_PASSWORD}" --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli ping | grep -q PONG
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks:
+      - data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M
+    logging: *default-logging
+
+networks:
+  edge:
+  data:
+    internal: true
+
+volumes:
+  postgres-data:
+  redis-data:
+
+secrets:
+  solana_fee_payer:
+    file: ${SOLANA_FEE_PAYER_KEYPAIR_FILE:?Set SOLANA_FEE_PAYER_KEYPAIR_FILE in .env.docker}

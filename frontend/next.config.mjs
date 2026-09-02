@@ -9,6 +9,7 @@ const nextConfig = {
   reactStrictMode: true,
   compress: true,
   poweredByHeader: false,
+  output: 'standalone',
   // Keep development artifacts away from production builds. A build or a
   // second dev command must never delete files underneath the active server.
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',

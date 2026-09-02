@@ -229,6 +229,21 @@ describe('IdentityService.linkAccount', () => {
     expect(viaWhatsapp.id).toBe('u1');
   });
 
+  it('lets Telegram resolve the existing web wallet immediately after linking', async () => {
+    const webWallet = { address: '5u5xG3S68S9nDsWYaTQvtSuBsUnNAK11SR1jhgpsgBr9', isDeployed: false };
+    prisma = createPrismaStub({
+      users: [{ id: 'web-user', username: 'web_signup', telegramId: null, smartWallet: webWallet }],
+    });
+    service = createService(prisma);
+
+    await service.linkAccount('web-user', 'telegram', '8817489572', 'lordzenith0');
+
+    const resolvedByBot = await service.resolveUser('telegram', '8817489572', 'lordzenith0');
+    expect(resolvedByBot?.id).toBe('web-user');
+    expect(resolvedByBot?.smartWallet?.address).toBe(webWallet.address);
+    expect(prisma.users[0].telegramId).toBe('8817489572');
+  });
+
   it('is idempotent when the identity is already linked to the same user', async () => {
     const result = await service.linkAccount('u1', 'telegram', '111', 'alice');
     expect(result).toEqual({ linked: true, alreadyLinked: true });

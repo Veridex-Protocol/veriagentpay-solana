@@ -7,7 +7,9 @@ import { SolanaChainService } from '../chains/solana/solana-chain.service';
 export class RelayerMonitorService implements OnModuleInit {
   private readonly logger = new Logger(RelayerMonitorService.name);
 
-  private readonly minThresholdSol = parseFloat(process.env.RELAYER_MIN_BALANCE_SOL || '0.05');
+  private readonly minThresholdSol = process.env.RELAYER_MIN_BALANCE_LAMPORTS !== undefined
+    ? Number(process.env.RELAYER_MIN_BALANCE_LAMPORTS) / 1_000_000_000
+    : parseFloat(process.env.RELAYER_MIN_BALANCE_SOL || '0.05');
   private lastAlertSentAt: number = 0;
   private lastCheckedBalanceNum: number = 0;
   private cachedStatus: { healthy: boolean; address: string; balance: string; isLow: boolean } = {

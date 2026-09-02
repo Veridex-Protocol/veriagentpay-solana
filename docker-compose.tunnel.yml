@@ -1,0 +1,25 @@
+services:
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_APP_URL: https://1pm4tfwd-3000.brs.devtunnels.ms
+        NEXT_PUBLIC_APP_DOMAIN: 1pm4tfwd-3000.brs.devtunnels.ms
+        NEXT_PUBLIC_RP_ID: 1pm4tfwd-3000.brs.devtunnels.ms
+        NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: UnchartedMannyTestBot
+    environment:
+      NEXTAUTH_URL: https://1pm4tfwd-3000.brs.devtunnels.ms
+
+  backend:
+    environment:
+      ALLOWED_ORIGINS: https://1pm4tfwd-3000.brs.devtunnels.ms,http://localhost:3000
+      APP_ORIGIN: https://1pm4tfwd-3000.brs.devtunnels.ms
+      ENABLED_PLATFORMS: telegram
+      PUBLIC_APP_URL: https://1pm4tfwd-3000.brs.devtunnels.ms
+      RP_ID: 1pm4tfwd-3000.brs.devtunnels.ms
+      SOLANA_PROGRAM_ID: HYnWswyU79GMX6s4kYDGBa6qQGc5JiJL9rQw37Q6bZJi
+      TELEGRAM_BOT_USERNAME: UnchartedMannyTestBot
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Load TELEGRAM_BOT_TOKEN from the main app environment}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?Set a temporary TELEGRAM_WEBHOOK_SECRET}
+      TELEGRAM_WEBHOOK_URL: https://1pm4tfwd-3000.brs.devtunnels.ms/api/platform/telegram/webhook
+      WEBAUTHN_ORIGIN: https://1pm4tfwd-3000.brs.devtunnels.ms
+      WEBAUTHN_ORIGINS: https://1pm4tfwd-3000.brs.devtunnels.ms

@@ -6,9 +6,15 @@ import { TelegramBotDriver } from '../platform/drivers/telegram-bot';
 import { RedisService } from '../core/redis.service';
 import { getTelegramBotUsername } from '../config/app-url.config';
 import * as crypto from 'crypto';
+import {
+  PendingTelegramLink,
+  TELEGRAM_LINK_TTL_SECONDS,
+  normalizeTelegramUsername,
+  pendingTelegramLinkKey,
+} from './telegram-link-state';
 
 /** Ten minutes, matching the lifetime of the code itself. */
-const LINK_OTP_TTL_SECONDS = 600;
+const LINK_OTP_TTL_SECONDS = TELEGRAM_LINK_TTL_SECONDS;
 
 export type PlatformType = 'telegram' | 'whatsapp' | 'discord' | 'slack';
 
@@ -182,6 +188,26 @@ export class AccountService {
             this.logger.warn(`Link OTP delivery failed for @${target.username}: ${err.message}`);
             await this.redis.del(this.linkOtpKey(code)).catch(() => undefined);
           }
+        }
+      }
+
+      if (platform === 'telegram' && handle) {
+        const normalizedHandle = normalizeTelegramUsername(handle);
+        if (normalizedHandle) {
+          const wallet = await this.prisma.smartWallet.findUnique({
+            where: { userId: resolvedUserId },
+            select: { address: true },
+          });
+          const pendingLink: PendingTelegramLink = {
+            code,
+            walletAddress: wallet?.address || null,
+            expiresAt: expiresAt.toISOString(),
+          };
+          await this.redis.setJson(
+            pendingTelegramLinkKey(normalizedHandle),
+            pendingLink,
+            TELEGRAM_LINK_TTL_SECONDS * 1000,
+          );
         }
       }
 

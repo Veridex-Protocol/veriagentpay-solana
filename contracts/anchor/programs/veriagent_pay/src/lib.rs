@@ -10,7 +10,10 @@ pub mod wallet;
 use protocol::*;
 use wallet::*;
 
+#[cfg(not(feature = "tunnel-program"))]
 declare_id!("AJirAN6RarZXyHWfYLSFB6NUCbFG3RaKDXMCDueRi7uV");
+#[cfg(feature = "tunnel-program")]
+declare_id!("HYnWswyU79GMX6s4kYDGBa6qQGc5JiJL9rQw37Q6bZJi");
 
 #[program]
 pub mod veriagent_pay {

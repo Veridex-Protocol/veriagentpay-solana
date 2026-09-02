@@ -15,6 +15,7 @@
     "backend:test": "bun test --cwd backend",
     "contracts:check": "cd contracts/anchor && cargo check --workspace --all-targets",
     "contracts:build:sbf": "cd contracts/anchor && cargo-build-sbf --manifest-path programs/veriagent_pay/Cargo.toml --tools-version v1.57",
+    "contracts:build:sbf:tunnel": "cd contracts/anchor && cargo-build-sbf --manifest-path programs/veriagent_pay/Cargo.toml --tools-version v1.57 --features tunnel-program",
     "contracts:test": "cd contracts/anchor && cargo test --workspace",
     "check:standalone": "bun scripts/check-standalone.ts",
     "frontend:build": "bun run --cwd frontend build",

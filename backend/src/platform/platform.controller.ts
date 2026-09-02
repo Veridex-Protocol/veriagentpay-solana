@@ -44,23 +44,12 @@ export class PlatformController {
   // --- TELEGRAM WEBHOOK ---
   @Post('telegram/webhook')
   @HttpCode(HttpStatus.OK)
-  async handleTelegramWebhook(@Body() update: any, @Req() req: Request) {
+  handleTelegramWebhook(@Body() update: any, @Req() req: Request) {
     this.assertEnabled('telegram');
     this.verifier.verifyTelegram(req);
 
     if (!update) return { ok: true };
-
-    const result = await this.telegramBotDriver.handleWebhookUpdate(update);
-    if (result.responseText) {
-      const chatId = update.message?.chat?.id || update.callback_query?.message?.chat?.id;
-      if (chatId) {
-        await this.telegramBotDriver.sendMessageWithMarkup(
-          chatId.toString(),
-          result.responseText,
-          result.replyMarkup
-        );
-      }
-    }
+    this.telegramBotDriver.acceptWebhookUpdate(update);
     return { ok: true };
   }
 

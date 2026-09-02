@@ -1835,7 +1835,7 @@ export class PlatformService {
       }
 
       return `🎉 *Account Successfully Linked!*\n\n` +
-        `✅ Your ${payload.platform} account (@${payload.username}) is now securely linked to your VeriAgent Pay Smart Account on BOTChain.\n\n` +
+        `✅ Your ${payload.platform} account (@${payload.username}) is now securely linked to your VeriAgent Pay Smart Account on Solana.\n\n` +
         `Your wallet, balances, and session keys are shared across every linked platform.`;
     } catch (err: any) {
       this.logger.error(`Verification error: ${err.message}`, err.stack);

@@ -1,0 +1,31 @@
+{
+  "network": "solana:devnet",
+  "profile": "local-dev-tunnel",
+  "clusterRpc": "https://api.devnet.solana.com",
+  "genesisHash": "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG",
+  "programId": "HYnWswyU79GMX6s4kYDGBa6qQGc5JiJL9rQw37Q6bZJi",
+  "programDataAddress": "2qTFjqvR1pAt6AMqT1NpSswiZpZHdVDtY76J4dWNnAyR",
+  "upgradeAuthority": "HgWVb3ews1JqcVTaXeJc86woYt4hnTTT2L2vvkNJ7ock",
+  "protocolConfig": "sUKnTHhGzr86wbwddVvePt229pnCev7kj5DopaXJAuZ",
+  "stablecoinMint": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  "webauthn": {
+    "rpId": "1pm4tfwd-3000.brs.devtunnels.ms",
+    "origin": "https://1pm4tfwd-3000.brs.devtunnels.ms"
+  },
+  "artifact": {
+    "sha256": "3176122913b9f23894c99dec89b934169577e801dec05933128511c4ec405733",
+    "dataLength": 490352,
+    "platformTools": "v1.57",
+    "cargoFeature": "tunnel-program"
+  },
+  "deployment": {
+    "signature": "9RcLoMpnGYERef99Me2rgeb4fqRmKxtS4GETjy3tzHChPg2JKxbnhCK1koYoG95QecrbAxAdr4BVcpvXhiXcQfu",
+    "slot": 491964035,
+    "deployedAt": "2026-09-02T11:52:55Z"
+  },
+  "initialization": {
+    "signature": "oxPju1a5PbWCusVn69g2Cdf5yxNduvFqmiGzNJcFa9xGThwguXTuPxFoPKmseniuTTijsEnGtEiPeQV6g7YsbGM",
+    "slot": 491966832,
+    "initializedAt": "2026-09-02T12:00:42Z"
+  }
+}

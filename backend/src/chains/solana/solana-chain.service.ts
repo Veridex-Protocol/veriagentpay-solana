@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { readFileSync } from 'node:fs';
 import {
   Commitment,
   Connection,
@@ -62,9 +63,13 @@ export class SolanaChainService {
 
   get feePayer(): Keypair {
     if (this.feePayerKeypair) return this.feePayerKeypair;
-    const secret = process.env.SOLANA_FEE_PAYER_KEYPAIR;
+    const secretFile = process.env.SOLANA_FEE_PAYER_KEYPAIR_FILE;
+    const secret = process.env.SOLANA_FEE_PAYER_KEYPAIR
+      || (secretFile ? readFileSync(secretFile, 'utf8') : undefined);
     if (!secret) {
-      throw new Error('SOLANA_FEE_PAYER_KEYPAIR is required for sponsored transactions');
+      throw new Error(
+        'SOLANA_FEE_PAYER_KEYPAIR or SOLANA_FEE_PAYER_KEYPAIR_FILE is required for sponsored transactions',
+      );
     }
     this.feePayerKeypair = feePayerFromSecret(secret);
     return this.feePayerKeypair;

@@ -51,6 +51,7 @@ import { CallPolicyModule } from '../call-policy/call-policy.module';
   exports: [
     PasskeyExecutionService,
     RelayerService,
+    SolanaChainService,
     RelayerMonitorService,
     ClaimRetryService,
   ],

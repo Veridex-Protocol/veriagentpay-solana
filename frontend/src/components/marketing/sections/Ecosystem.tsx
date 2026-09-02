@@ -21,8 +21,7 @@ const GROUPS: EcosystemGroup[] = [
   {
     label: 'Fast settlement',
     items: [
-      { name: 'BOTChain', logo: '/chains/botchain.svg', alt: 'BOTChain L1 Fast Settlement', isWide: true, width: 92, height: 18 },
-      { name: 'Stellar', logo: '/chains/stellar.svg', alt: 'Stellar Network Anchors', isWide: true, width: 78, height: 20 },
+      { name: 'Solana', logo: '/chains/solana.svg', alt: 'Solana Fast Settlement', width: 20, height: 18 },
     ],
   },
   {

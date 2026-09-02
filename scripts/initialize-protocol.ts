@@ -20,13 +20,16 @@ const rpcUrl = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
 const keypairPath = process.env.SOLANA_DEPLOYER_KEYPAIR || ".keys/devnet-deployer.json";
 const rpId = process.env.RP_ID || "veriagentpay.xyz";
 const origin = process.env.WEBAUTHN_ORIGIN || "https://veriagentpay.xyz";
+const programId = new PublicKey(
+  process.env.SOLANA_PROGRAM_ID || VERIAGENT_PROGRAM_ID,
+);
 
 const connection = new Connection(rpcUrl, "confirmed");
 const payer = Keypair.fromSecretKey(
   Uint8Array.from(JSON.parse(await readFile(keypairPath, "utf8")) as number[]),
 );
 const genesisHash = await connection.getGenesisHash();
-const configAddress = deriveProtocolConfig(VERIAGENT_PROGRAM_ID);
+const configAddress = deriveProtocolConfig(programId);
 const expected = {
   authority: payer.publicKey,
   stablecoinMint: SOLANA_DEVNET_USDC_MINT,
@@ -40,7 +43,7 @@ if (existing) {
   verifyConfig(existing.owner, existing.data, expected);
   console.log(JSON.stringify({
     status: "already-initialized",
-    programId: VERIAGENT_PROGRAM_ID.toBase58(),
+    programId: programId.toBase58(),
     configAddress: configAddress.toBase58(),
     authority: payer.publicKey.toBase58(),
     stablecoinMint: SOLANA_DEVNET_USDC_MINT.toBase58(),
@@ -56,7 +59,7 @@ const discriminator = createHash("sha256")
   .digest()
   .subarray(0, 8);
 const instruction = new TransactionInstruction({
-  programId: VERIAGENT_PROGRAM_ID,
+  programId,
   keys: [
     { pubkey: payer.publicKey, isSigner: true, isWritable: true },
     { pubkey: configAddress, isSigner: false, isWritable: true },
@@ -83,7 +86,7 @@ verifyConfig(initialized.owner, initialized.data, expected);
 console.log(JSON.stringify({
   status: "initialized",
   signature,
-  programId: VERIAGENT_PROGRAM_ID.toBase58(),
+  programId: programId.toBase58(),
   configAddress: configAddress.toBase58(),
   authority: payer.publicKey.toBase58(),
   stablecoinMint: SOLANA_DEVNET_USDC_MINT.toBase58(),
@@ -101,7 +104,7 @@ function verifyConfig(
   data: Buffer,
   values: typeof expected,
 ): void {
-  if (!owner.equals(VERIAGENT_PROGRAM_ID)) throw new Error("Protocol config has the wrong owner");
+  if (!owner.equals(programId)) throw new Error("Protocol config has the wrong owner");
   if (data.length < 171) throw new Error("Protocol config data is truncated");
   if (data[8] !== 1 || data[10] !== 0) throw new Error("Protocol config version or pause state is invalid");
   assertBytes(data.subarray(11, 43), values.authority.toBytes(), "authority");

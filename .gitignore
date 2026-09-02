@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.docker.example
 .keys/
 .next/
 coverage/
@@ -11,3 +12,5 @@ target/
 test-ledger/
 *.log
 *.tsbuildinfo
+.next/
+.next-dev/
