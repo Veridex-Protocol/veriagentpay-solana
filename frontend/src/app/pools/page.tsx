@@ -114,7 +114,7 @@ export default function PoolsPage() {
                   <div className="space-y-2 font-mono text-xs">
                     <div className="flex justify-between">
                       <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Total Pool Balance:</span>
-                      <span className="font-bold text-[#D4A106] dark:text-[#F2D827]">${poolBalance.toFixed(2)} {pool.token || 'USDT'}</span>
+                      <span className="font-bold text-[#D4A106] dark:text-[#F2D827]">${poolBalance.toFixed(2)} {pool.token || 'USDC'}</span>
                     </div>
 
                     <div className="flex justify-between">

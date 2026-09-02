@@ -30,7 +30,7 @@ function MerchantCheckoutContent() {
 
   const to = searchParams.get('to') || '';
   const amount = searchParams.get('amount') || '0.00';
-  const token = searchParams.get('token') || 'USDT';
+  const token = searchParams.get('token') || 'USDC';
   const note = searchParams.get('note') || (isClaimMode ? `Social Payout ${fromUser ? `from @${fromUser}` : ''}` : 'Payment');
 
   const [showPasskey, setShowPasskey] = useState(false);
@@ -90,7 +90,7 @@ function MerchantCheckoutContent() {
               <span>{isClaimMode ? '🎁 Claim Payout' : 'Merchant Pay'}</span>
             </h1>
             <p className="text-xs text-slate-400">
-              {isClaimMode ? 'Claim your social payout instantly with 1-tap Passkey registration' : 'Gasless merchant checkout powered by BOTChain'}
+              {isClaimMode ? 'Claim your social payout with a Solana passkey' : 'USDC checkout secured by a Solana passkey vault'}
             </p>
           </div>
         </div>

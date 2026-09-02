@@ -37,7 +37,7 @@ export default function SubscriptionsPage() {
     try {
       await createSubMutation.mutateAsync({
         to: recipient,
-        token: 'USDT',
+        token: 'USDC',
         amount: parseFloat(amount) || 10,
         frequency,
       });
@@ -128,7 +128,7 @@ export default function SubscriptionsPage() {
                 <div className="flex justify-between items-center text-sm font-mono">
                   <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Amount per billing:</span>
                   <span className="font-extrabold text-[#D4A106] dark:text-[#F2D827]">
-                    ${(sub.amount ?? 0).toFixed(2)} {sub.token || 'USDT'}
+                    ${(sub.amount ?? 0).toFixed(2)} {sub.token || 'USDC'}
                   </span>
                 </div>
 

@@ -25,9 +25,7 @@ import { VeriAgentLoader, VeriAgentLogoMark } from '../../components/ui/VeriAgen
 import { useConfirm, useToast } from '../../components/providers/NotificationProvider';
 
 const SUPPORTED_TOKENS = [
-  { symbol: 'USDT', name: 'Tether USD', icon: '💲' },
   { symbol: 'USDC', name: 'USD Coin', icon: '💵' },
-  { symbol: 'BOT', name: 'BOT Token', icon: '🤖' },
 ];
 
 function EnvelopesPageInner() {
@@ -51,7 +49,7 @@ function EnvelopesPageInner() {
     isEscalated && prefilledCount ? prefilledCount : '10',
   );
   const [selectedToken, setSelectedToken] = useState(
-    isEscalated && isKnownToken ? (prefilledToken as string) : 'USDT',
+    isEscalated && isKnownToken ? (prefilledToken as string) : 'USDC',
   );
   const [distributionMode, setDistributionMode] = useState<'random' | 'equal'>('random');
   const [envelopeType, setEnvelopeType] = useState<'OPEN' | 'CUSTOM'>('OPEN');
@@ -160,7 +158,7 @@ function EnvelopesPageInner() {
                 Create New Red Envelope Drop
               </h3>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} mt-0.5`}>
-                Escrowed on-chain via BOTChain SocialPayments
+                Native Solana envelope escrow is coming soon
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -253,7 +251,7 @@ function EnvelopesPageInner() {
                 </label>
                 <input
                   type="text"
-                  placeholder="@username, phone, or 0x address"
+                  placeholder="@username, phone, or Solana address"
                   value={customRecipient}
                   onChange={(e) => setCustomRecipient(e.target.value)}
                   className={`w-full p-2.5 rounded-xl border font-mono text-xs ${

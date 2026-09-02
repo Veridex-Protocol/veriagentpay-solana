@@ -50,7 +50,7 @@ export function SplitCard({ split, onPayShare, onShareLink }: SplitCardProps) {
 
   const total = split.totalAmount || split.amount || 0;
   const yourShare = split.yourShare || (total / totalParticipants);
-  const token = split.token || 'USDT';
+  const token = split.token || 'USDC';
   const isCompleted = split.status === 'COMPLETED' || paidCount === totalParticipants;
 
   const handleCardClick = () => {

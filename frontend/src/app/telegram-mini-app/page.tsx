@@ -27,7 +27,7 @@ export default function TelegramMiniAppRedirect() {
         from: params.get('from') || '',
         to: to || '',
         amount: amount || '50',
-        token: params.get('token') || 'USDT',
+        token: params.get('token') || 'USDC',
         platform: 'telegram',
       });
       router.replace(`/pay?${paymentParams.toString()}`);

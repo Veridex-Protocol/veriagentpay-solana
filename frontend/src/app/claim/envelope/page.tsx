@@ -59,7 +59,7 @@ function PublicEnvelopeClaimContent() {
 
   const remainingBalance = envelope?.remainingBalance || 320.0;
   const remainingClaims = envelope?.remainingClaims || 64;
-  const token = envelope?.token || 'USDT';
+  const token = envelope?.token || 'USDC';
 
   return (
     <AppLayout>

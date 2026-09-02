@@ -42,7 +42,7 @@ export function EnvelopeClaimFlow({ envelopeId }: { envelopeId: string }) {
 
   const claiming = claimStep !== 'idle';
   const amount = envelope?.remainingBalance ?? 0;
-  const tokenSymbol = envelope?.token || 'USDT';
+  const tokenSymbol = envelope?.token || 'USDC';
 
   // What this recipient actually walks away with, which is not always the
   // whole remaining pool: an OPEN envelope with claims left either draws a
@@ -158,7 +158,7 @@ export function EnvelopeClaimFlow({ envelopeId }: { envelopeId: string }) {
               You claimed {claimedAmount} {tokenSymbol}!
             </h2>
             <p className="va-public-claim-copy mb-6 mt-2 text-sm">
-              Funds transferred gas-free to your Smart Account on BOTChain.
+              USDC transferred to your passkey vault on Solana.
             </p>
 
             {/* A wallet created here has a generated handle. Until a chat

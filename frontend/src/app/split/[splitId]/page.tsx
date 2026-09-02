@@ -78,7 +78,7 @@ export default function SplitBillDynamicPage() {
 
   const total = split?.totalAmount || 0;
   const yourShare = split?.yourShare || (total / totalCount);
-  const token = split?.token || 'USDT';
+  const token = split?.token || 'USDC';
   const isCompleted = split?.status === 'COMPLETED' || paidCount === totalCount;
   const hasPaid = split?.hasPaid;
 

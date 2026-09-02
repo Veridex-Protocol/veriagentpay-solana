@@ -249,8 +249,6 @@ export default function RequestsListPage() {
                       }`}
                   >
                     <option value="USDC">USDC</option>
-                    <option value="USDT">USDT</option>
-                    <option value="BOT">BOT</option>
                   </select>
                 </div>
               </div>

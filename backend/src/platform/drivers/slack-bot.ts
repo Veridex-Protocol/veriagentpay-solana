@@ -402,8 +402,6 @@ export class SlackBotDriver implements OnModuleInit {
               },
               options: [
                 { text: { type: 'plain_text', text: 'USDC' }, value: 'USDC' },
-                { text: { type: 'plain_text', text: 'USDT' }, value: 'USDT' },
-                { text: { type: 'plain_text', text: 'BOT' }, value: 'BOT' },
               ],
             },
           },

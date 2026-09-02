@@ -23,7 +23,7 @@ export default function ConsolidatedClaimPage() {
   // number a brand-new recipient sees, so it must be one we can stand behind.
   const { label: apyLabel } = useYieldApy();
   const [amount, setAmount] = useState<number>(0);
-  const [token, setToken] = useState<string>('USDT');
+  const [token, setToken] = useState<string>('USDC');
   const [claimed, setClaimed] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export default function ConsolidatedClaimPage() {
       setAmount(parseFloat(searchParams.get('amount') || '0'));
     }
     if (searchParams.get('token')) {
-      setToken(searchParams.get('token') || 'USDT');
+      setToken(searchParams.get('token') || 'USDC');
     }
   }, [searchParams]);
 
@@ -97,7 +97,7 @@ export default function ConsolidatedClaimPage() {
               Claimed {amount} {token}!
             </h2>
             <p className="va-public-claim-copy mb-6 mt-2 text-sm">
-              Funds transferred gas-free to your Smart Account on BOTChain.
+              USDC transferred to your passkey vault on Solana.
             </p>
             <button
               onClick={() => router.push(`/save-yield?amount=${amount}`)}

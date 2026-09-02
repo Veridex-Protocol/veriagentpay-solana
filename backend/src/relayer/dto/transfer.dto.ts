@@ -19,10 +19,10 @@ import {
  * @see docs/audit/11th-august-2026-1.md — SEC-017
  */
 export class TransferDto {
-  /** `0x…` address or an `@handle`. */
+  /** Solana base58 address or an `@handle`. */
   @IsString()
   @MaxLength(128)
-  to!: string; // 0x address or @handle
+  to!: string;
 
   @IsString()
   @Matches(/^USDC$/i, { message: 'token must be USDC on Solana' })

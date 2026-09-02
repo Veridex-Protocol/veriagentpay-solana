@@ -211,7 +211,7 @@ export default function ShortLinkClaimPage() {
             {metadata.fromUser ? `${metadata.fromUser} sent you` : 'You received'}
           </h1>
           <div className="va-public-claim-amount my-3">
-            ${metadata.amount} <span className="text-2xl font-semibold" style={{ color: 'var(--va-app-ink)' }}>{metadata.token || 'USDT'}</span>
+            ${metadata.amount} <span className="text-2xl font-semibold" style={{ color: 'var(--va-app-ink)' }}>{metadata.token || 'USDC'}</span>
           </div>
           <p className="va-public-claim-copy text-xs">
             Secured on BOTChain L1 via SocialPayments escrow

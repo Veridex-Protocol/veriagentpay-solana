@@ -44,7 +44,7 @@ export function ActiveLoansDashboardCard() {
         {activeLoans.map((loan: any) => {
           const pool = loan.pool || {};
           const poolName = pool.name || 'Group Pool';
-          const token = pool.token || 'USDT';
+          const token = pool.token || 'USDC';
           const poolId = loan.poolId || pool.id;
 
           let deadlineText = '';
@@ -136,7 +136,7 @@ export function ActiveLoansDashboardCard() {
         {pendingApplications.map((loan: any) => {
           const pool = loan.pool || {};
           const poolName = pool.name || 'Group Pool';
-          const token = pool.token || 'USDT';
+          const token = pool.token || 'USDC';
           const poolId = loan.poolId || pool.id;
 
           return (

@@ -1782,10 +1782,9 @@ export class TelegramBotDriver implements OnModuleInit, OnModuleDestroy {
         data: { name },
         messageIdsToCleanup: state.messageIdsToCleanup || [],
       });
-      const keyboard = [
-        [{ text: 'USDC (Default)', callback_data: 'pool_create_tok:USDC' }, { text: 'USDT', callback_data: 'pool_create_tok:USDT' }],
-        [{ text: 'BOT', callback_data: 'pool_create_tok:BOT' }],
-      ];
+        const keyboard = [
+          [{ text: 'USDC', callback_data: 'pool_create_tok:USDC' }],
+        ];
       await this.sendMessageWithInlineKeyboard(chatId, `🏦 *Pool: "${name}"*\n\nSelect pool base token:`, keyboard);
     } else if (state.step === 'AWAITING_POOL_CREATE_TOKEN') {
       const token = text.trim().toUpperCase() || 'USDC';
