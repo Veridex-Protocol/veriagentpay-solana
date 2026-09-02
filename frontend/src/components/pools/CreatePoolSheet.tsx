@@ -20,7 +20,7 @@ export const CreatePoolSheet: React.FC<CreatePoolSheetProps> = ({ isOpen, onClos
 
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('25000');
-  const [token, setToken] = useState<'USDC' | 'USDT' | 'BOT'>('USDT');
+  const [token] = useState<'USDC'>('USDC');
   const [interestRate, setInterestRate] = useState('4.2');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
@@ -155,13 +155,11 @@ export const CreatePoolSheet: React.FC<CreatePoolSheetProps> = ({ isOpen, onClos
                   </label>
                   <select
                     value={token}
-                    onChange={(e) => setToken(e.target.value as any)}
+                    disabled
                     className={`w-full p-3 rounded-xl border font-mono text-sm font-bold transition ${isDark ? 'bg-slate-950 border-white/[0.08] text-[#F2D827]' : 'bg-slate-50 border-slate-300 text-slate-950'
                       }`}
                   >
-                    <option value="USDT">USDT</option>
                     <option value="USDC">USDC</option>
-                    <option value="BOT">BOT</option>
                   </select>
                 </div>
               </div>

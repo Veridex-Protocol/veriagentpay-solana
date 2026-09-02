@@ -32,6 +32,9 @@ import { NOTIFICATION_SERVICE, type UserNotifier } from '../common/service-contr
 import { FunnelEventsService } from '../analytics/funnel-events.service';
 import { createRelayerSigner } from '../relayer/relayer-signer.factory';
 import { GrowthService } from '../growth/growth.service';
+import { SolanaChainService } from '../chains/solana/solana-chain.service';
+import { isSolanaAddress } from '../chains/solana/solana-account';
+import { SolanaRelayerService } from '../relayer/solana-relayer.service';
 
 export interface SocialMessagePayload {
   platform: 'telegram' | 'whatsapp' | 'slack' | 'discord';
@@ -58,6 +61,12 @@ export interface ParsedIntent {
   /** Short-link code, e.g. the escrow being cancelled. */
   code?: string;
   adminArgs?: any;
+}
+
+function formatSolBalance(lamports: bigint): string {
+  const whole = lamports / 1_000_000_000n;
+  const fraction = (lamports % 1_000_000_000n).toString().padStart(9, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole.toString();
 }
 
 @Injectable()
@@ -90,6 +99,7 @@ export class PlatformService {
     private readonly unifiedNotificationService: UserNotifier,
     private readonly userTokensService: UserTokensService,
     private readonly growthService: GrowthService,
+    private readonly solana: SolanaChainService,
     private readonly subscriptionService?: SubscriptionService,
     private readonly adminService?: AdminService,
     private readonly nlpService?: NlpService
@@ -176,36 +186,20 @@ export class PlatformService {
     this.logger.log(`Parsed command via [${parsedCommand.source.toUpperCase()}] (confidence: ${parsedCommand.confidence}): ${parsedCommand.intent}`);
 
     if (intent.unsupportedToken) {
-      const user = await this.resolveCurrentUser(payload);
-      if (user) {
-        const resolved = await this.userTokensService.resolveForUser(user.id, intent.unsupportedToken);
-        if (resolved.candidates.length > 1) {
-          return this.formatAmbiguousTokenPrompt(payload, intent, resolved.candidates);
-        }
-        if (resolved.token) {
-          intent.tokenInfo = resolved.token;
-          intent.tokenSymbol = resolved.token.symbol;
-          delete intent.unsupportedToken;
-        }
-      }
-    }
-
-    if (intent.unsupportedToken) {
-      const supportedList = Object.keys(SUPPORTED_TOKENS).join(', ');
       return `⚠️ Unsupported token '${intent.unsupportedToken}'.\n\n` +
-        `Supported tokens on BOTChain: *${supportedList}*\n` +
-        `To watch this token, type: \`/addtoken <contract_address>\`\n` +
-        `Example: "send 50 USDT to @bob" or "/addtoken 0x1234...abcd"`;
+        `The Solana edition currently settles payments in *USDC only*.\n` +
+        `SOL is shown as a network balance but is not spendable by the vault program yet.\n\n` +
+        `Example: "send 50 USDC to @bob"`;
     }
 
     try {
       switch (intent.action) {
         case 'TOKENS':
-          return await this.handleTokensCommand(payload);
+          return this.solanaFeatureUnavailable('Custom SPL token watchlists');
         case 'ADD_TOKEN':
-          return await this.handleAddTokenCommand(payload, intent);
+          return this.solanaFeatureUnavailable('Custom SPL token watchlists');
         case 'REMOVE_TOKEN':
-          return await this.handleRemoveTokenCommand(payload, intent);
+          return this.solanaFeatureUnavailable('Custom SPL token watchlists');
         case 'START': {
           const user = await this.prisma.user.findFirst({
             where: {
@@ -271,33 +265,25 @@ export class PlatformService {
             `💸 *Payments*\n` +
             `• /pay 50 USDC @alice — Send money\n` +
             `• /request 25 USDC @bob — Request money\n` +
-            `• /split 120 @bob @charlie — Split a bill\n` +
-            `• /subscribe 50 @landlord 30 — Recurring payment\n\n` +
-            `🎯 *Savings & Social*\n` +
-            `• /save — Deposit to AI yield vault (Coming Soon)\n` +
-            `• /envelope 50 5 — Red envelope Merkle pool\n` +
-            `• /pools — View your group pools\n` +
-            `• /pool invite <poolId> @user1,@user2 — Invite members\n` +
-            `• /pool join <poolId> — Join a pool\n\n` +
-            `↩️ *Unclaimed payments*\n` +
-            `• /pending — Payments you sent that are still unclaimed\n` +
-            `• /cancel <code> — Cancel one and get your funds back\n\n` +
+            `• SOL — Visible network balance; USDC is the settlement asset\n\n` +
+            `🎯 *Coming next on Solana*\n` +
+            `• Splits, subscriptions, envelopes, pools, and yield vaults\n\n` +
             `🏆 *Rewards*\n` +
             `• /referral — Refer friends & earn VERI\n` +
             `• /leaderboard — Global rankings\n` +
             `• /badges — Achievement badges\n\n` +
-            `💡 You can also type naturally: "send 50 USDT to @alice"\n` +
+            `💡 You can also type naturally: "send 50 USDC to @alice"\n` +
             `Recipients are auto-saved to contacts for quick re-sends.`;
         case 'PAY':
           return await this.handlePayAction(payload, intent);
         case 'REQUEST':
           return await this.handleRequestAction(payload, intent);
         case 'SAVE':
-          return await this.handleSaveAction(payload, intent);
+          return this.solanaFeatureUnavailable('Yield vaults');
         case 'ENVELOPE':
-          return await this.handleEnvelopeAction(payload, intent);
+          return this.solanaFeatureUnavailable('Red envelopes');
         case 'SPLIT':
-          return await this.handleSplitAction(payload, intent);
+          return this.solanaFeatureUnavailable('Bill splits');
         case 'LEADERBOARD':
           return await this.handleLeaderboardCommand(payload);
         case 'BADGES':
@@ -372,7 +358,7 @@ export class PlatformService {
           }
           return `✅ *Admin Identifier Whitelisted:* ${intent.adminArgs?.platform}:${intent.adminArgs?.value}`;
         case 'SUBSCRIBE':
-          return await this.handleSubscribeAction(payload, intent);
+          return this.solanaFeatureUnavailable('Recurring subscriptions');
         case 'WALLET':
           return await this.handleWalletCommand(payload);
         case 'DASHBOARD':
@@ -386,21 +372,21 @@ export class PlatformService {
         case 'REQUESTS_MENU':
           return await this.handleRequestsMenu(payload);
         case 'SPLITS_MENU':
-          return await this.handleSplitsMenu(payload);
+          return this.solanaFeatureUnavailable('Bill splits');
         case 'VAULTS_MENU':
-          return await this.handleVaultsMenu(payload);
+          return this.solanaFeatureUnavailable('Yield vaults');
         case 'ENVELOPES_MENU':
-          return await this.handleEnvelopesMenu(payload);
+          return this.solanaFeatureUnavailable('Red envelopes');
         case 'POOLS_MENU':
-          return await this.handlePoolsMenu(payload);
+          return this.solanaFeatureUnavailable('Group pools');
         case 'POOL_INVITE':
-          return await this.handlePoolInviteAction(payload, intent);
+          return this.solanaFeatureUnavailable('Group pools');
         case 'POOL_JOIN':
-          return await this.handlePoolJoinAction(payload, intent);
+          return this.solanaFeatureUnavailable('Group pools');
         case 'POOL_DEPOSIT':
-          return await this.handlePoolDepositAction(payload, intent);
+          return this.solanaFeatureUnavailable('Group pools');
         case 'POOL_REQUEST':
-          return await this.handlePoolRequestAction(payload, intent);
+          return this.solanaFeatureUnavailable('Group pools');
         case 'MENU':
           return await this.handleUnifiedMenu(payload);
         case 'VERIFY':
@@ -557,36 +543,7 @@ export class PlatformService {
     const keysLink = this.generateSignedDeepLink('/keys', { platform: payload.platform, userId: payload.platformId, username: payload.username, mint: 'true' });
     const dashboardLink = this.generateSignedDeepLink('/dashboard', { platform: payload.platform, userId: payload.platformId, username: payload.username });
 
-    // Fetch on-chain balances
-    let botBalStr = '0.0000';
-    let usdcBalStr = '0.00';
-    let usdtBalStr = '0.00';
-
-    try {
-      const provider = createBotChainProvider();
-
-      // 1. Native BOT Balance
-      const botBalance = await provider.getBalance(contact);
-      botBalStr = parseFloat(ethers.formatEther(botBalance)).toFixed(4);
-
-      // 2. USDC Balance
-      const usdcAddress = SUPPORTED_TOKENS.USDC?.address;
-      if (usdcAddress) {
-        const usdcContract = new ethers.Contract(usdcAddress, ['function balanceOf(address) view returns (uint256)'], provider);
-        const usdcBalance = await usdcContract.balanceOf(contact);
-        usdcBalStr = parseFloat(ethers.formatUnits(usdcBalance, SUPPORTED_TOKENS.USDC.decimals)).toFixed(2);
-      }
-
-      // 3. USDT Balance
-      const usdtAddress = SUPPORTED_TOKENS.USDT?.address;
-      if (usdtAddress) {
-        const usdtContract = new ethers.Contract(usdtAddress, ['function balanceOf(address) view returns (uint256)'], provider);
-        const usdtBalance = await usdtContract.balanceOf(contact);
-        usdtBalStr = parseFloat(ethers.formatUnits(usdtBalance, SUPPORTED_TOKENS.USDT.decimals)).toFixed(2);
-      }
-    } catch (e: any) {
-      this.logger.warn(`Failed to fetch on-chain balances for ${contact}: ${e.message}`);
-    }
+    const { sol, usdc } = await this.fetchOnChainBalances(contact);
 
     let statusBlock = '';
     if (!user || !user.smartWallet) {
@@ -606,12 +563,11 @@ export class PlatformService {
     }
 
     return `👤 *Hello @${payload.username}!*\n` +
-      `Your Smart Account Address on BOTChain is:\n` +
+      `Your passkey vault address on Solana is:\n` +
       `\`${contact}\`\n\n` +
-      `💰 *Balances on BOTChain:*\n` +
-      `• *BOT:* ${botBalStr} BOT\n` +
-      `• *USDC:* ${usdcBalStr} USDC\n` +
-      `• *USDT:* ${usdtBalStr} USDT${statusBlock}`;
+      `💰 *Solana balances:*\n` +
+      `• *SOL:* ${sol}\n` +
+      `• *USDC:* ${usdc}${statusBlock}`;
   }
 
   private async handleDashboardCommand(payload: SocialMessagePayload): Promise<string> {
@@ -697,37 +653,20 @@ export class PlatformService {
     return this.identityService.resolveUser(payload.platform, payload.platformId, payload.username);
   }
 
-  /**
-   * Fetches on-chain BOT/USDC/USDT balances for a wallet address.
-   * Shared between /balance (concise) and /wallet (full) views.
-   */
-  private async fetchOnChainBalances(address: string): Promise<{ bot: string; usdc: string; usdt: string }> {
+  /** Fetches visible SOL and spendable USDC balances for a Solana vault. */
+  private async fetchOnChainBalances(address: string): Promise<{ sol: string; usdc: string }> {
     try {
-      const provider = createBotChainProvider();
-
-      const botBalance = await provider.getBalance(address);
-      const bot = parseFloat(ethers.formatEther(botBalance)).toFixed(4);
-
-      let usdc = '0.00';
-      const usdcAddress = SUPPORTED_TOKENS.USDC?.address;
-      if (usdcAddress) {
-        const usdcContract = new ethers.Contract(usdcAddress, ['function balanceOf(address) view returns (uint256)'], provider);
-        const usdcBalance = await usdcContract.balanceOf(address);
-        usdc = parseFloat(ethers.formatUnits(usdcBalance, SUPPORTED_TOKENS.USDC.decimals)).toFixed(2);
-      }
-
-      let usdt = '0.00';
-      const usdtAddress = SUPPORTED_TOKENS.USDT?.address;
-      if (usdtAddress) {
-        const usdtContract = new ethers.Contract(usdtAddress, ['function balanceOf(address) view returns (uint256)'], provider);
-        const usdtBalance = await usdtContract.balanceOf(address);
-        usdt = parseFloat(ethers.formatUnits(usdtBalance, SUPPORTED_TOKENS.USDT.decimals)).toFixed(2);
-      }
-
-      return { bot, usdc, usdt };
+      const [lamports, atomicUsdc] = await Promise.all([
+        this.solana.getVaultSolBalance(address),
+        this.solana.getVaultUsdcBalance(address),
+      ]);
+      return {
+        sol: formatSolBalance(lamports),
+        usdc: (Number(atomicUsdc) / 1_000_000).toFixed(2),
+      };
     } catch (e: any) {
-      this.logger.warn(`Failed to fetch on-chain balances for ${address}: ${e.message}`);
-      return { bot: '0.0000', usdc: '0.00', usdt: '0.00' };
+      this.logger.warn(`Failed to fetch Solana balances for ${address}: ${e.message}`);
+      return { sol: '0', usdc: '0.00' };
     }
   }
 
@@ -738,12 +677,11 @@ export class PlatformService {
     const user = await this.resolveCurrentUser(payload);
     const contact = user?.smartWallet?.address
       ?? await this.identityService.resolveContact(payload.platform, payload.platformId);
-    const { bot, usdc, usdt } = await this.fetchOnChainBalances(contact);
+    const { sol, usdc } = await this.fetchOnChainBalances(contact);
 
     return `💰 *Balances* — \`${this.truncateAddress(contact)}\`\n\n` +
-      `• *BOT:* ${bot}\n` +
-      `• *USDC:* ${usdc}\n` +
-      `• *USDT:* ${usdt}`;
+      `• *SOL:* ${sol}\n` +
+      `• *USDC:* ${usdc}`;
   }
 
   /**
@@ -1223,6 +1161,128 @@ export class PlatformService {
   }
 
   private async handlePayAction(payload: SocialMessagePayload, intent: ParsedIntent): Promise<string> {
+    if (!intent.amount || !Number.isFinite(intent.amount) || intent.amount <= 0 || !intent.recipient) {
+      return `💸 *Send USDC on Solana*\n\nUsage: \`/pay 50 USDC @alice\`\nOr type naturally: "send 50 USDC to @alice"`;
+    }
+
+    const tokenSymbol = (intent.tokenSymbol || intent.tokenInfo?.symbol || 'USDC').toUpperCase();
+    if (tokenSymbol !== 'USDC') {
+      return `⚠️ The Solana edition currently settles payments in *USDC only*.`;
+    }
+
+    const sender = await this.resolveCurrentUser(payload);
+    const onboardLink = this.generateSignedDeepLink('/onboard', {
+      platform: payload.platform,
+      platformId: payload.platformId,
+      username: payload.username,
+    });
+    const keysLink = this.generateSignedDeepLink('/keys', {
+      platform: payload.platform,
+      userId: payload.platformId,
+      username: payload.username,
+      mint: 'true',
+    });
+
+    if (!sender?.smartWallet) {
+      return `⚠️ *Payment Setup Required*\n\nCreate your Solana passkey vault first.\n\n👉 [Create Passkey Vault](${onboardLink})`;
+    }
+
+    const activeSession = sender.sessionKeys?.[0];
+    if (!activeSession) {
+      return `⚠️ *Session Key Required*\n\nAuthorize a bounded Solana session before sending from chat.\n\n👉 [Authorize Session Key](${keysLink})`;
+    }
+
+    const recipientInput = intent.recipient.trim();
+    let recipientAddress = isSolanaAddress(recipientInput) ? recipientInput : null;
+    let recipientUser: any = null;
+    if (recipientAddress) {
+      recipientUser = await this.prisma.user.findFirst({
+        where: { smartWallet: { address: recipientAddress } },
+      });
+    } else {
+      recipientUser = await this.identityService.resolveUserByHandle(recipientInput);
+      recipientAddress = recipientUser?.smartWallet?.address || null;
+    }
+
+    if (!recipientAddress) {
+      return `⚠️ Recipient ${recipientInput} does not have a linked Solana passkey vault yet.\n\n` +
+        `Native Solana payment links are not available in this build.`;
+    }
+
+    if (sender.requireBiometricsAlways || intent.amount > Number(activeSession.perTxLimitUSD)) {
+      const paymentLink = this.generateSignedDeepLink('/send', {
+        to: recipientAddress,
+        amount: intent.amount,
+        token: 'USDC',
+      });
+      return `🔐 *Passkey Approval Required*\n\nOpen the app to approve ${intent.amount} USDC on Solana.\n\n` +
+        `👉 [Review Payment](${paymentLink})`;
+    }
+
+    try {
+      const decryptedKey = await this.relayerService.decryptSessionKey(activeSession);
+      const result = await (this.relayerService as unknown as SolanaRelayerService).executeSessionTransfer({
+        userId: sender.id,
+        vaultAddress: sender.smartWallet.address,
+        recipientAddress,
+        encryptedSessionKey: decryptedKey,
+        txAmountUSD: intent.amount,
+      });
+
+      await this.activityService.record({
+        userIdentifier: sender.id,
+        action: 'TRANSFER_SENT',
+        amount: intent.amount,
+        token: 'USDC',
+        txHash: result.txHash,
+        metadata: {
+          recipient: recipientInput,
+          to: recipientAddress,
+          platform: payload.platform,
+          source: 'chat',
+        },
+      });
+      await this.contactsService.upsertAfterPayment(
+        sender.id,
+        payload.platform,
+        recipientInput.replace(/^@/, ''),
+        recipientAddress,
+        recipientUser?.username,
+      );
+
+      const recipientPlatformId = recipientUser?.telegramId;
+      if (payload.platform === 'telegram' && recipientPlatformId && /^\d+$/.test(recipientPlatformId)) {
+        await this.sendDirectMessage(
+          'telegram',
+          recipientPlatformId,
+          `🔔 *Payment Received*\n\nYou received *${intent.amount} USDC* on Solana.\n\n` +
+            `Signature: \`${result.txHash}\``,
+        );
+      }
+
+      const cluster = process.env.SOLANA_CLUSTER || 'devnet';
+      const explorer = process.env.SOLANA_EXPLORER_URL || 'https://explorer.solana.com';
+      return `💸 *Payment Sent on Solana*\n\n` +
+        `👤 *To:* ${recipientInput} (${this.truncateAddress(recipientAddress)})\n` +
+        `💰 *Amount:* ${intent.amount} USDC\n` +
+        `🔗 [View transaction](${explorer}/tx/${result.txHash}?cluster=${encodeURIComponent(cluster)})`;
+    } catch (err: any) {
+      if (
+        err.code === 'SESSION_EXPIRED' ||
+        err.message?.toLowerCase().includes('session') ||
+        err.message?.toLowerCase().includes('limit')
+      ) {
+        return `🔐 *Passkey Approval Required*\n\n` +
+          `${toUserMessage(err, 'Your Solana session needs authorization.')}\n\n` +
+          `👉 [Authorize Session Key](${keysLink})`;
+      }
+      return `⚠️ *Payment Failed*\n\n` +
+        toUserMessage(err, 'The Solana USDC transfer could not be completed. No funds moved.');
+    }
+  }
+
+  /** Legacy EVM implementation retained temporarily for migration reference. */
+  private async handleLegacyPayAction(payload: SocialMessagePayload, intent: ParsedIntent): Promise<string> {
     // No amount provided — show quick-start with contact suggestions
     if (!intent.amount || !Number.isFinite(intent.amount) || intent.amount <= 0 || intent.amount > 1_000_000) {
       const user = await this.resolveCurrentUser(payload);
@@ -2291,6 +2351,11 @@ export class PlatformService {
     }
 
     return text;
+  }
+
+  private solanaFeatureUnavailable(feature: string): string {
+    return `ℹ️ *${feature} are not yet available in the native Solana build.*\n\n` +
+      `Today this build supports passkey vaults, bounded sessions, SOL balance visibility, and USDC transfers.`;
   }
 
   private async handleLeaderboardCommand(payload: SocialMessagePayload): Promise<string> {

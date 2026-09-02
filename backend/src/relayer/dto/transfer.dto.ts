@@ -25,7 +25,7 @@ export class TransferDto {
   to!: string; // 0x address or @handle
 
   @IsString()
-  @Matches(/^[A-Za-z0-9]{2,10}$/, { message: 'token must be a short alphanumeric symbol' })
+  @Matches(/^USDC$/i, { message: 'token must be USDC on Solana' })
   token!: string;
 
   /**

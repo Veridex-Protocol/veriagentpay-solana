@@ -42,6 +42,9 @@ export class RequestsService {
     }
 
     const token = (dto.token || 'USDC').toUpperCase();
+    if (token !== 'USDC') {
+      throw new BadRequestException('The Solana edition currently supports USDC requests only');
+    }
     const expiresAt = dto.expiresInDays
       ? new Date(Date.now() + dto.expiresInDays * 24 * 60 * 60 * 1000)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default

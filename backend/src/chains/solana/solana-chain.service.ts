@@ -140,6 +140,11 @@ export class SolanaChainService {
     }
   }
 
+  async getVaultSolBalance(vaultAddress: string): Promise<bigint> {
+    const address = this.publicKey(vaultAddress, 'vault');
+    return BigInt(await this.connection.getBalance(address, this.commitment));
+  }
+
   createRecipientAtaInstruction(recipientAddress: string): TransactionInstruction {
     const recipient = this.publicKey(recipientAddress, 'recipient');
     return createAssociatedTokenAccountIdempotentInstruction(

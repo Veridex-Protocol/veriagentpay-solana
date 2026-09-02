@@ -8,7 +8,7 @@ const FACTS = [
   { value: '$0.00', label: 'Transaction fees', note: 'Every transfer is sponsored. You never need to buy or hold gas tokens.' },
   { value: 'Face ID', label: 'Easy sign-in', note: 'Confirm payments with your face, fingerprint, or screen lock. No passwords to forget.' },
   { value: '100% You', label: 'Your custody', note: 'Your money stays in your hands. Not even we can move your funds.' },
-  { value: 'Instant', label: 'Supported networks', note: 'Lightning-fast settlement powered by BOTChain and Stellar.' },
+  { value: 'Solana', label: 'Settlement network', note: 'Native program execution with devnet USDC support.' },
 ];
 
 export function TrustFacts() {

@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { VeriAgentLogoMark } from './VeriAgentLoader';
 
 export interface NaturalLanguagePayInputProps {
-  onParsed: (result: { recipient?: string; amount?: string; token?: 'USDC' | 'USDT' | 'BOT' }) => void;
+  onParsed: (result: { recipient?: string; amount?: string; token?: 'USDC' }) => void;
 }
 
 export const NaturalLanguagePayInput: React.FC<NaturalLanguagePayInputProps> = ({ onParsed }) => {
@@ -39,7 +39,7 @@ export const NaturalLanguagePayInput: React.FC<NaturalLanguagePayInputProps> = (
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Send 50 USDT to @alice for dinner"
+            placeholder="Send 50 USDC to @alice for dinner"
             aria-label="Describe a payment or savings action"
             className="w-full bg-transparent py-2 text-xs text-white placeholder-slate-500 focus:outline-none sm:py-0.5 sm:text-sm"
           />

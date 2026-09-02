@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
 
-export type PaymentToken = 'USDC' | 'USDT' | 'BOT';
+export type PaymentToken = 'USDC';
 
 export interface ParsedPayment {
   recipient: string;
@@ -39,16 +39,16 @@ export function useNaturalLanguage() {
       // Nothing is guessed. Without a recipient and an amount there is no
       // instruction to act on, and the caller must ask rather than assume.
       if (!recipient || amount === null || amount === undefined) {
-        setError('Could not read that. Try "send 20 USDT to @alice".');
+        setError('Could not read that. Try "send 20 USDC to @alice".');
         return null;
       }
 
-      // Anything the parser reports that we do not settle in is rejected rather
-      // than coerced: USDC is gated off entirely, so silently accepting it
-      // would produce a payment against a token that does not resolve.
-      const raw = String(params.token ?? 'USDT').toUpperCase();
-      const token: PaymentToken =
-        raw === 'USDT' || raw === 'BOT' ? raw : 'USDT';
+      const raw = String(params.token ?? 'USDC').toUpperCase();
+      if (raw !== 'USDC') {
+        setError('The Solana edition currently supports USDC payments only.');
+        return null;
+      }
+      const token: PaymentToken = 'USDC';
 
       return { recipient: String(recipient), amount: String(amount), token };
     } catch (err: any) {

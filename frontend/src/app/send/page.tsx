@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '../../components/layout/AppLayout';
 import { useTheme } from '../../components/providers/ThemeProvider';
-import { useBalances, useTransfer, useUserTokens } from '../../hooks/useApi';
-import { Send, CheckCircle2, ShieldCheck, Bot, Sparkles, ExternalLink, AlertTriangle, Fingerprint, Plus } from 'lucide-react';
+import { useBalances, useTransfer } from '../../hooks/useApi';
+import { Send, CheckCircle2, ShieldCheck, Bot, Sparkles, ExternalLink, AlertTriangle, Fingerprint } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getExplorerTxUrl, formatTxHash } from '../../lib/explorer';
 import { api } from '../../lib/api';
@@ -38,14 +37,11 @@ function SendContent() {
   const [transferMethod, setTransferMethod] = useState<'session_key' | 'passkey'>('session_key');
 
   const { data: balanceData } = useBalances();
-  const { data: tokenList = [] } = useUserTokens();
   const transferMutation = useTransfer();
 
-  const availableTokens = tokenList.length > 0
-    ? tokenList.map((t) => t.symbol)
-    : ['USDC'];
+  const availableTokens = ['USDC'];
 
-  const balances = balanceData?.balances || { USDC: '0.00', USDT: '0.00', BOT: '0.00' };
+  const balances = balanceData?.balances || { USDC: '0.00', SOL: '0' };
   const activeTokenBalance = parseFloat(balances[token] || '0');
 
   const handleParseNaturalPrompt = async () => {
@@ -55,31 +51,26 @@ function SendContent() {
       const res = await api.parseIntent(naturalPrompt);
       if (res?.params) {
         if (res.params.amount) setAmount(String(res.params.amount));
-        if (res.params.token) {
-          setToken(res.params.token.toUpperCase());
+        if (res.params.token?.toUpperCase() === 'USDC') {
+          setToken('USDC');
         }
         if (res.params.recipient) setRecipient(res.params.recipient);
         if (res.params.note) setNote(res.params.note);
       }
     } catch {
-      // Enhanced natural language parser supporting 0x EVM addresses, handles, phone numbers
-      const regex = /(?:send|pay|transfer)\s+\$?(\d+(?:\.\d+)?)\s*([A-Za-z0-9]+)?\s+(?:to\s+)?(0x[a-fA-F0-9]{40}|@?[\w\.]+|\+?\d[\d\s\-\(\)]{6,})/i;
+      const regex = /(?:send|pay|transfer)\s+\$?(\d+(?:\.\d+)?)\s*(USDC)?\s+(?:to\s+)?([1-9A-HJ-NP-Za-km-z]{32,44}|@?[\w\.]+|\+?\d[\d\s\-\(\)]{6,})/i;
       const matches = naturalPrompt.match(regex);
       if (matches) {
         if (matches[1]) setAmount(matches[1]);
-        if (matches[2]) {
-          setToken(matches[2].toUpperCase());
-        }
+        setToken('USDC');
         if (matches[3]) setRecipient(matches[3].trim());
       } else {
         const simpleMatch = naturalPrompt.match(/(\d+(?:\.\d+)?)\s*([A-Za-z0-9]+)?/i);
         if (simpleMatch) {
           if (simpleMatch[1]) setAmount(simpleMatch[1]);
-          if (simpleMatch[2]) {
-            setToken(simpleMatch[2].toUpperCase());
-          }
+          setToken('USDC');
         }
-        const addrMatch = naturalPrompt.match(/(0x[a-fA-F0-9]{40}|@\w+|\+\d+)/i);
+        const addrMatch = naturalPrompt.match(/([1-9A-HJ-NP-Za-km-z]{32,44}|@\w+|\+\d+)/);
         if (addrMatch) {
           setRecipient(addrMatch[1]);
         }
@@ -297,12 +288,12 @@ function SendContent() {
             {/* Recipient Input */}
             <div className="space-y-2">
               <label className="va-product-label block">
-                Recipient (@username, phone number, or 0x address)
+                Recipient (@username, phone number, or Solana address)
               </label>
               <RankedContactPicker
                 value={recipient}
                 onChange={(value) => setRecipient(value)}
-                placeholder="@username, phone, or wallet address"
+                placeholder="@username, phone, or Solana address"
                 accentColor="yellow"
               />
             </div>
@@ -336,14 +327,6 @@ function SendContent() {
                     {t}
                   </button>
                 ))}
-                <Link
-                  href="/tokens"
-                  className="px-3 py-2 text-xs font-mono text-slate-400 hover:text-[#F2D827] border border-dashed border-slate-300 dark:border-white/[0.1] rounded-xl flex items-center gap-1 transition-colors"
-                  title="Add custom token"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Watch</span>
-                </Link>
               </div>
             </div>
 

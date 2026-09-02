@@ -48,7 +48,7 @@ export function SiteFooter() {
           <Wordmark />
         </Link>
         <p>Send cash in chat.</p>
-        <small>Fast, zero-fee settlement on BOTChain and Stellar.</small>
+        <small>Passkey-secured USDC settlement on Solana.</small>
       </div>
 
       {GROUPS.map((group) => (

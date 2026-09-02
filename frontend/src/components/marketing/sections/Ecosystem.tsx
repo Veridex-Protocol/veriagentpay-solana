@@ -27,7 +27,7 @@ const GROUPS: EcosystemGroup[] = [
   {
     label: 'Supported currency',
     items: [
-      { name: 'USDT', logo: '/chains/usdt.svg', alt: 'USDT 1:1 USD Tether Stablecoin', width: 18, height: 18 },
+      { name: 'USDC', logo: '/chains/usdc.svg', alt: 'USD Coin on Solana', width: 18, height: 18 },
     ],
   },
   {

@@ -35,6 +35,8 @@ export default function DashboardPage() {
   const yieldSummary = balanceData?.yieldSummary || { earningYield: '0.00', apy: '0.0', availableCash: '0.00' };
 
   const totalUsd = balanceData?.totalUsd ?? 0;
+  const usdcBalance = balanceData?.balances?.USDC ?? '0.00';
+  const solBalance = balanceData?.balances?.SOL ?? '0';
 
   const platformColors: Record<string, string> = {
     telegram: 'text-[#229ED9]',
@@ -77,6 +79,17 @@ export default function DashboardPage() {
                 <div className="va-product-subtle p-3"><span className="block text-[11px] text-[var(--va-app-muted)]">Available</span><strong className="mt-1 block font-mono text-sm">{hideBalances ? '$••••' : `$${parseFloat(yieldSummary.availableCash).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}</strong></div>
                 <div className="va-product-subtle p-3"><span className="block text-[11px] text-[var(--va-app-muted)]">Savings · Coming Soon</span><strong className="mt-1 block font-mono text-sm text-amber-500">{hideBalances ? '$••••' : `$${parseFloat(yieldSummary.earningYield).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}</strong></div>
                 <div className="va-product-subtle col-span-2 p-3 sm:col-span-1"><span className="block text-[11px] text-[var(--va-app-muted)]">Pending</span><strong className="mt-1 block font-mono text-sm">$0.00</strong></div>
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-1">
+                <div className="va-product-subtle min-w-32 px-3 py-2">
+                  <span className="block text-[11px] text-[var(--va-app-muted)]">Spendable</span>
+                  <strong className="mt-1 block font-mono text-sm">{hideBalances ? '•••• USDC' : `${usdcBalance} USDC`}</strong>
+                </div>
+                <div className="va-product-subtle min-w-32 px-3 py-2">
+                  <span className="block text-[11px] text-[var(--va-app-muted)]">Network balance</span>
+                  <strong className="mt-1 block font-mono text-sm">{hideBalances ? '•••• SOL' : `${solBalance} SOL`}</strong>
+                </div>
               </div>
             </div>
 

@@ -32,7 +32,7 @@ export class BalanceController {
 
     let totalUsd = 0;
 
-    // The competition edition deliberately exposes one settlement asset.
+    // USDC is the only spendable settlement asset in the current program.
     try {
       const rawBalance = await this.solana.getVaultUsdcBalance(walletAddress);
       const usdcBalance = Number(rawBalance) / 1_000_000;
@@ -49,6 +49,26 @@ export class BalanceController {
       this.logger.warn(`Failed to fetch USDC balance for ${walletAddress}: ${e.message}`);
       balances.USDC = '0';
       tokens.push({ symbol: 'USDC', name: 'USD Coin', balance: 0, priceUsd: 1, valueUsd: 0 });
+    }
+
+    // SOL sent to the vault PDA is visible as its network balance. It is not
+    // included in totalUsd or offered for payments because the program only
+    // authorizes SPL USDC transfers today.
+    try {
+      const rawBalance = await this.solana.getVaultSolBalance(walletAddress);
+      const solBalance = Number(rawBalance) / 1_000_000_000;
+      balances.SOL = formatSol(solBalance);
+      tokens.push({
+        symbol: 'SOL',
+        name: 'Solana',
+        balance: solBalance,
+        priceUsd: null,
+        valueUsd: 0,
+      });
+    } catch (e: any) {
+      this.logger.warn(`Failed to fetch SOL balance for ${walletAddress}: ${e.message}`);
+      balances.SOL = '0';
+      tokens.push({ symbol: 'SOL', name: 'Solana', balance: 0, priceUsd: null, valueUsd: 0 });
     }
 
     // Compute yield summary from activity logs
@@ -128,4 +148,12 @@ export class BalanceController {
     }
     return walletAddress || '';
   }
+}
+
+function formatSol(balance: number): string {
+  return balance.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 9,
+    useGrouping: false,
+  });
 }

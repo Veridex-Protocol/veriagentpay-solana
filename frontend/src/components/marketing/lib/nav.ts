@@ -97,7 +97,7 @@ export const MOBILE_GROUPS: MobileGroup[] = [
     id: 'about',
     label: 'About',
     links: [
-      { label: 'What is VeriAgent Pay', href: '#about', blurb: 'Zero gas fees on BOTChain and Stellar', icon: Network },
+      { label: 'What is VeriAgent Pay', href: '#about', blurb: 'Passkey-secured USDC on Solana', icon: Network },
       { label: 'Privacy Policy', href: '/privacy', blurb: 'How we keep your data safe and private', icon: ShieldCheck },
     ],
   },

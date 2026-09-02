@@ -83,7 +83,7 @@ export function Hero() {
                 boxShadow: '0 0 8px #F2D827',
               }}
             />
-            <span>BOTChain Launch & Bitcoin Asia Edition</span>
+            <span>Solana Devnet · Passkey Payments</span>
             <ArrowRight size={12} style={{ marginLeft: 2 }} />
           </Link>
         </motion.div>
@@ -93,8 +93,8 @@ export function Hero() {
         </motion.h1>
 
         <motion.p className="va-lede" {...rise(0.16, reducedMotion)}>
-          Send, split, and save stablecoins inside Telegram, WhatsApp, Discord, or Slack.
-          No wallet setup, no seed phrases, $0 gas fees.
+          Send USDC from Telegram or the web through a self-custodial Solana passkey vault.
+          No seed phrase, with sponsored transaction fees.
         </motion.p>
 
         <motion.div className="va-actions" {...rise(0.24, reducedMotion)}>

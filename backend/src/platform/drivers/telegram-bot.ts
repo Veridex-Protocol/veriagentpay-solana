@@ -34,7 +34,7 @@ export const TELEGRAM_BOT_COMMANDS: TelegramBotCommands[] = [
   { command: 'start', description: 'Start VeriAgent Pay Dashboard & Wallet' },
   { command: 'wallet', description: 'Open wallet dashboard & passkey controls' },
   { command: 'dashboard', description: 'Open the VeriAgent Pay web dashboard' },
-  { command: 'balance', description: 'View your token balances on BOTChain' },
+  { command: 'balance', description: 'View your SOL and USDC balances on Solana' },
   { command: 'history', description: 'View recent transactions & activity history' },
   { command: 'pay', description: 'Send money: /pay 50 USDC @alice' },
   { command: 'request', description: 'Request money: /request 25 USDC @bob' },

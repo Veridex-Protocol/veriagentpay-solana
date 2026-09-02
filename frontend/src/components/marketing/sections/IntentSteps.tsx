@@ -12,7 +12,7 @@ const STEPS: Array<{ n: string; title: string; copy: string; state: PaymentState
   {
     n: '01',
     title: 'Say it',
-    copy: 'Type what you want naturally, like "Send 20 USDT to Ella". The app reads your message and prepares the payment for you.',
+    copy: 'Type what you want naturally, like "Send 20 USDC to Ella". The app reads your message and prepares the payment for you.',
     state: 'intent_parsed',
   },
   {

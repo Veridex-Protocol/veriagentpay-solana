@@ -30,8 +30,8 @@ const DATA: Record<SceneName, SocialScene> = {
     headline: 'Share dinner without awkward group chats.',
     copy: 'Send one request into your group. Everyone pays their own share with one tap. You see live checkmarks as each friend pays.',
     cta: { label: 'Try bill splitting', href: '/splits' },
-    label: 'Dinner with friends · 84 USDT',
-    amount: '84 USDT',
+    label: 'Dinner with friends · 84 USDC',
+    amount: '84 USDC',
     progress: 0.75,
     status: '3 of 4 friends paid',
     people: [
@@ -48,10 +48,10 @@ const DATA: Record<SceneName, SocialScene> = {
     headline: 'Save together for trips, gifts, and projects.',
     copy: 'Set a goal and share the link. Money gathers safely in the pool and unlocks only when your group reaches the target.',
     cta: { label: 'Create a group pool', href: '/pools' },
-    label: 'Trip to Tokyo · 1,680 USDT',
-    amount: '1,680 USDT',
+    label: 'Trip to Tokyo · 1,680 USDC',
+    amount: '1,680 USDC',
     progress: 0.84,
-    status: '84% of 2,000 USDT goal reached',
+    status: '84% of 2,000 USDC goal reached',
     people: [
       { initials: 'MC', settled: true },
       { initials: 'TA', settled: true },
@@ -67,8 +67,8 @@ const DATA: Record<SceneName, SocialScene> = {
     headline: 'Send lucky money and gifts in chat.',
     copy: 'Drop a digital red envelope into any chat. Friends open it to claim lucky packets that go straight into their balance.',
     cta: { label: 'Send a red envelope', href: '/envelopes' },
-    label: 'Lunar New Year envelope · 100 USDT',
-    amount: '100 USDT',
+    label: 'Lunar New Year envelope · 100 USDC',
+    amount: '100 USDC',
     progress: 0.8,
     status: '4 of 5 envelopes opened',
     people: [
@@ -82,9 +82,9 @@ const DATA: Record<SceneName, SocialScene> = {
     fg: '#0f172a',
     accent: '#F2D827',
     claims: [
-      { name: 'Maya claimed', value: '24 USDT' },
-      { name: 'Tomas claimed', value: '31 USDT' },
-      { name: 'Jordan claimed', value: '18 USDT' },
+      { name: 'Maya claimed', value: '24 USDC' },
+      { name: 'Tomas claimed', value: '31 USDC' },
+      { name: 'Jordan claimed', value: '18 USDC' },
     ],
   },
 };

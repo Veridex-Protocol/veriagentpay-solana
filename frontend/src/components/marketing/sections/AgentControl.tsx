@@ -16,7 +16,7 @@ const PERMISSIONS: PermissionItem[] = [
   {
     label: 'Authorized Scope',
     value: 'Auto-allocate unspent balance into verified yield',
-    subvalue: 'Monitors idle USDT and optimizes compounding return.',
+    subvalue: 'A future USDC automation can operate only within this scope.',
     icon: Lock,
     badge: 'On-Chain Limit',
   },
@@ -79,7 +79,7 @@ export function AgentControl() {
               <div className="va-agent__allowance-header">
                 <span className="va-agent__allowance-tag">Weekly Spending Cap</span>
                 <div className="va-agent__allowance-val va-num">
-                  $100.00 <span className="va-agent__allowance-curr">USDT</span>
+                  $100.00 <span className="va-agent__allowance-curr">USDC</span>
                 </div>
               </div>
 
@@ -134,7 +134,7 @@ export function AgentControl() {
 
               <div className="va-agent__foot">
                 <span className="va-agent__foot-note">
-                  Secured by non-custodial smart contracts on BOTChain.
+                  Enforced by the native Solana passkey vault program.
                 </span>
                 <Link className="va-btn va-btn--outline-dark" href="/settings/security">
                   Manage Permissions

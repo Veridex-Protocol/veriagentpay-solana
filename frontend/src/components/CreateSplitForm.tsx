@@ -16,7 +16,7 @@ export function CreateSplitForm({ onSuccess, onCancel }: CreateSplitFormProps) {
 
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
-  const [token, setToken] = useState('USDT');
+  const [token, setToken] = useState('USDC');
   const [participantsText, setParticipantsText] = useState('');
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customAmountsText, setCustomAmountsText] = useState('');
@@ -144,9 +144,7 @@ export function CreateSplitForm({ onSuccess, onCancel }: CreateSplitFormProps) {
                 : 'bg-slate-50 border-slate-200 text-slate-950'
             }`}
           >
-            <option value="USDT">USDT</option>
             <option value="USDC">USDC</option>
-            <option value="BOT">BOT</option>
           </select>
         </div>
       </div>

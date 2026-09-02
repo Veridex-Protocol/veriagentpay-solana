@@ -45,7 +45,7 @@ export default function RequestsListPage() {
 
   // Create request form state
   const [recipient, setRecipient] = useState('');
-  const [token, setToken] = useState('USDT');
+  const [token, setToken] = useState('USDC');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [createdRequest, setCreatedRequest] = useState<any>(null);

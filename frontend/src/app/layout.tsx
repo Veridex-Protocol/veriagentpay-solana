@@ -12,17 +12,17 @@ export const metadata: Metadata = {
     template: '%s | VeriAgent Pay',
   },
   description:
-    'Send, split, and save stablecoins inside Telegram, WhatsApp, Discord, and Slack. Passkey biometric security, zero seed phrases, and $0 gas fees on BOTChain and Stellar.',
+    'Send USDC from Telegram and the web with Solana passkey vaults, zero seed phrases, and sponsored transaction fees.',
   keywords: [
     'social payments',
-    'send USDT telegram',
+    'send USDC telegram',
     'send crypto in telegram',
     'gasless crypto wallet',
     'passkey crypto wallet',
     'WebAuthn crypto wallet',
-    'BOTChain',
-    'Stellar Soroban payments',
-    'USDT payments',
+    'Solana payments',
+    'Solana passkey wallet',
+    'USDC payments',
     'group money pools',
     'crypto red envelopes',
     'bill split stablecoins',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'VeriAgent Pay | Send Cash & Stablecoins in Chat with Zero Gas',
     description:
-      'Passkey-secured social payments across Telegram, WhatsApp, Discord, and Slack. Zero seed phrases and $0 gas fees on BOTChain and Stellar.',
+      'Passkey-secured USDC payments on Solana with zero seed phrases and sponsored transaction fees.',
     url: baseUrl,
     siteName: 'VeriAgent Pay',
     images: [
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'VeriAgent Pay | Send Cash & Stablecoins in Chat with Zero Gas',
     description:
-      'Passkey-secured social payments across Telegram, WhatsApp, Discord, and Slack. Zero seed phrases and $0 gas fees on BOTChain and Stellar.',
+      'Passkey-secured USDC payments on Solana with zero seed phrases and sponsored transaction fees.',
     creator: '@veriagentpay',
     site: '@veriagentpay',
     images: ['/og.png'],
@@ -72,7 +72,7 @@ const jsonLdData = [
     name: 'VeriAgent Pay',
     alternateName: 'Veridex VeriAgent Pay',
     url: 'https://veriagentpay.xyz',
-    logo: 'https://veriagentpay.xyz/chains/botchain.svg',
+    logo: `${baseUrl}/veriagent_logos/veriagent-mark.svg`,
     sameAs: [
       'https://x.com/veriagentpay',
       'https://t.me/VeriagentPay',
@@ -118,7 +118,7 @@ const jsonLdData = [
         name: 'What is VeriAgent Pay?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'VeriAgent Pay is a gasless social payment network that allows users to send, receive, split, pool, and save stablecoins directly within Telegram, WhatsApp, Discord, and Slack using natural language and passkeys.',
+          text: 'VeriAgent Pay is a self-custodial Solana payment app for sending and receiving USDC from the web and Telegram using natural language and passkeys.',
         },
       },
       {
@@ -126,7 +126,7 @@ const jsonLdData = [
         name: 'Are there any gas fees?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'No. VeriAgent Pay sponsors 100% of network transaction fees via BOTChain and Stellar Soroban account abstraction so you never pay gas.',
+          text: 'No. VeriAgent Pay uses a dedicated Solana fee payer to sponsor supported USDC transactions.',
         },
       },
       {
@@ -142,7 +142,7 @@ const jsonLdData = [
         name: 'Which blockchains and stablecoins are supported?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'VeriAgent Pay natively supports BOTChain L1 EVM contracts, Stellar Soroban smart accounts with anchor fiat on/off ramps, and Tether USDT with sub-second finality.',
+          text: 'This edition uses native Solana programs and devnet USDC. SOL is displayed as the vault network balance; USDC is the supported settlement asset.',
         },
       },
     ],

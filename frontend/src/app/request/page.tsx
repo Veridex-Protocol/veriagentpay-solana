@@ -16,8 +16,7 @@ import { api } from '../../lib/api';
 import { RankedContactPicker } from '../../components/ui/RankedContactPicker';
 import { useToast } from '../../components/providers/NotificationProvider';
 
-const isSupportedToken = (value: string | null): value is 'USDC' | 'USDT' | 'BOT' =>
-  value === 'USDC' || value === 'USDT' || value === 'BOT';
+const isSupportedToken = (value: string | null): value is 'USDC' => value === 'USDC';
 
 export default function RequestMoneyPage() {
   const { theme } = useTheme();
@@ -25,7 +24,7 @@ export default function RequestMoneyPage() {
   const toast = useToast();
 
   const [recipient, setRecipient] = useState('');
-  const [token, setToken] = useState('USDT');
+  const [token, setToken] = useState('USDC');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [naturalPrompt, setNaturalPrompt] = useState('');
@@ -49,14 +48,14 @@ export default function RequestMoneyPage() {
         toast.success('Prompt parsed by AI agent!');
       }
     } catch {
-      // Enhanced natural language parser supporting 0x EVM addresses, handles, phone numbers
+      // Fallback parser supports Solana addresses, handles, and phone numbers.
       // Supports patterns like:
-      // - "request 50 USDT from 0x123..."
+      // - "request 50 USDC from a Solana address"
       // - "ask @alice for 100 USDC"
       // - "request 20 from +1234567890"
 
       // First, extract wallet address (highest priority for recipient)
-      const walletMatch = naturalPrompt.match(/0x[a-fA-F0-9]{40}/);
+      const walletMatch = naturalPrompt.match(/\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/);
       if (walletMatch) {
         setRecipient(walletMatch[0]);
       }
@@ -75,7 +74,7 @@ export default function RequestMoneyPage() {
         }
       } else {
         // Fallback: try to extract just amount and token
-        const simpleMatch = naturalPrompt.match(/(?:\$|€|£)?(\d+(?:\.\d+)?)\s*(USDC|USDT|BOT)?/i);
+        const simpleMatch = naturalPrompt.match(/(?:\$|€|£)?(\d+(?:\.\d+)?)\s*(USDC)?/i);
         if (simpleMatch) {
           if (simpleMatch[1]) setAmount(simpleMatch[1]);
           if (simpleMatch[2] && isSupportedToken(simpleMatch[2].toUpperCase())) {
@@ -86,7 +85,7 @@ export default function RequestMoneyPage() {
 
       // Extract recipient if not already set (for @handle or phone number)
       if (!walletMatch) {
-        const recipientRegex = /(?:from)\s+(0x[a-fA-F0-9]{40}|@[\w\.]+|\+?\d[\d\s\-\(\)]{7,})/i;
+        const recipientRegex = /(?:from)\s+([1-9A-HJ-NP-Za-km-z]{32,44}|@[\w\.]+|\+?\d[\d\s\-\(\)]{7,})/i;
         const recipientMatch = naturalPrompt.match(recipientRegex);
 
         if (recipientMatch) {
@@ -172,7 +171,7 @@ export default function RequestMoneyPage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder='Type naturally, e.g. "Request 50 USDT from @alice" or "request 100 from 0x123..."'
+              placeholder='Type naturally, e.g. "Request 50 USDC from @alice"'
               value={naturalPrompt}
               onChange={(e) => setNaturalPrompt(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleParseNaturalPrompt()}
@@ -201,7 +200,7 @@ export default function RequestMoneyPage() {
             {/* Recipient Input */}
             <div className="space-y-2">
               <label className={`text-xs font-mono font-bold uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Request From (@username, Phone, or 0x Address)
+                Request From (@username, phone, or Solana address)
               </label>
               <RankedContactPicker
                 value={recipient}
@@ -244,8 +243,6 @@ export default function RequestMoneyPage() {
                     }`}
                 >
                   <option value="USDC">USDC</option>
-                  <option value="USDT">USDT</option>
-                  <option value="BOT">BOT</option>
                 </select>
               </div>
             </div>

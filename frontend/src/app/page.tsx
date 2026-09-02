@@ -5,7 +5,7 @@ import { MarketingPage } from '../components/marketing/MarketingPage';
 export const metadata: Metadata = {
   title: 'VeriAgent Pay | Send Cash & Stablecoins in Chat with Zero Gas',
   description:
-    'Send, split, and save stablecoins inside Telegram, WhatsApp, Discord, and Slack. No wallet setup, no seed phrases, $0 gas fees on BOTChain and Stellar.',
+    'Send USDC from Telegram and the web using Solana passkey vaults, with no seed phrase and sponsored transaction fees.',
   openGraph: {
     title: 'VeriAgent Pay | Send Cash & Stablecoins in Chat with Zero Gas',
     description:

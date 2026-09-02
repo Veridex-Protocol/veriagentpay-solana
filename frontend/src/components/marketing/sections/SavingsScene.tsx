@@ -74,7 +74,7 @@ export function SavingsScene() {
               Put your spare cash on autopilot.
             </h2>
             <p className="va-lede">
-              Automated savings and cross-chain yield vaults are launching soon. Unspent USDT in your chat wallet will earn verified returns in the background, compounding daily with zero lockup.
+              Native Solana USDC savings are launching soon. This preview shows how a future bounded session could automate yield without changing wallet custody.
             </p>
 
             {/* Clean Feature List */}
@@ -97,7 +97,7 @@ export function SavingsScene() {
                 <CheckCircle2 size={18} className="va-savings-check-icon" />
                 <div>
                   <strong>zkTLS On-Chain Attestation</strong>
-                  <span>Yield rates are cryptographically proven on BOTChain with zero blind trust.</span>
+                  <span>Future yield attestations will be verified before a Solana vault can use them.</span>
                 </div>
               </li>
             </ul>
@@ -120,7 +120,7 @@ export function SavingsScene() {
                   <span className="va-yield-card__pulse bg-amber-400" />
                   <span>Auto-Save Vault <span className="text-[10px] font-mono text-amber-400 ml-1">(Coming Soon)</span></span>
                 </div>
-                <span className="va-yield-card__network">BOTChain #968</span>
+                <span className="va-yield-card__network">Solana · Preview</span>
               </div>
 
               {/* Strategy Selector Tabs */}
@@ -160,9 +160,9 @@ export function SavingsScene() {
                     min={100}
                     max={100000}
                     step={500}
-                    aria-label="Simulated balance in USDT"
+                    aria-label="Simulated balance in USDC"
                   />
-                  <span className="va-yield-card__curr">USDT</span>
+                  <span className="va-yield-card__curr">USDC</span>
                 </div>
 
                 {/* Preset Chips */}
@@ -188,7 +188,7 @@ export function SavingsScene() {
                 </div>
 
                 <div className="va-yield-card__return-val va-num">
-                  +${yearlyEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <small>USDT / year</small>
+                  +${yearlyEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <small>USDC / year</small>
                 </div>
 
                 <div className="va-yield-card__return-stats va-num">

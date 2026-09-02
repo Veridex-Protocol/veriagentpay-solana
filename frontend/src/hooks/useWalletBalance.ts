@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 export interface WalletBalances {
   totalUsd: number;
   tokens: {
-    symbol: 'USDC' | 'USDT' | 'BOT' | 'VERI';
+    symbol: 'USDC' | 'SOL';
     name: string;
     balance: number;
     priceUsd: number | null;
