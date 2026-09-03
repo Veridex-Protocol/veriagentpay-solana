@@ -74,4 +74,12 @@ pub enum VeriAgentError {
     InvalidPaymentLinkSender,
     #[msg("The payment-link claim authority is invalid")]
     InvalidClaimAuthority,
+    #[msg("The vault does not have enough spendable SOL after rent")]
+    InsufficientVaultLamports,
+    #[msg("The payment-link account does not have enough escrowed SOL")]
+    InsufficientEscrowLamports,
+    #[msg("The source and destination accounts must differ")]
+    IdenticalAccounts,
+    #[msg("The payment link is not a native SOL escrow")]
+    InvalidNativePaymentLink,
 }

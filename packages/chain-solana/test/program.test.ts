@@ -5,6 +5,8 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 import {
   createPaymentLinkWithSessionInstruction,
+  createSolPasskeyTransferInstruction,
+  createSolPaymentLinkWithPasskeyInstruction,
   decodePaymentLinkAccount,
   decodeVaultAccount,
   derivePaymentLink,
@@ -87,5 +89,51 @@ describe("payment-link program helpers", () => {
     expect(link.status).toBe(1);
     expect(link.amount).toBe(9_007_199_254_740_999n);
     expect(link.claimedDestination).toEqual(new PublicKey(new Uint8Array(32).fill(6)));
+  });
+});
+
+describe("native SOL program helpers", () => {
+  test("encodes passkey SOL transfer account ordering", () => {
+    const keys = Array.from({ length: 4 }, (_, index) => new PublicKey(new Uint8Array(32).fill(index + 10)));
+    const instruction = createSolPasskeyTransferInstruction({
+      payer: keys[0]!,
+      config: keys[1]!,
+      vault: keys[2]!,
+      recipient: keys[3]!,
+      amountLamports: 1_000_000_000n,
+      vaultNonce: 3n,
+      proofExpiresAt: 1_800_000_000n,
+      authenticatorData: new Uint8Array(37),
+      clientDataJson: new TextEncoder().encode("{}"),
+    });
+
+    expect(instruction.keys).toHaveLength(5);
+    expect(instruction.keys[0]).toMatchObject({ pubkey: keys[0], isSigner: true, isWritable: true });
+    expect(instruction.keys[2]).toMatchObject({ pubkey: keys[2], isSigner: false, isWritable: true });
+    expect(instruction.keys[3]).toMatchObject({ pubkey: keys[3], isSigner: false, isWritable: true });
+  });
+
+  test("encodes passkey SOL payment-link identity and accounts", () => {
+    const keys = Array.from({ length: 4 }, (_, index) => new PublicKey(new Uint8Array(32).fill(index + 20)));
+    const instruction = createSolPaymentLinkWithPasskeyInstruction({
+      payer: keys[0]!,
+      config: keys[1]!,
+      vault: keys[2]!,
+      paymentLink: keys[3]!,
+      linkId: new Uint8Array(32).fill(30),
+      recipientCommitment: new Uint8Array(32).fill(31),
+      amountLamports: 500_000_000n,
+      linkExpiresAtUnix: 1_800_000_000n,
+      vaultNonce: 4n,
+      proofExpiresAt: 1_700_000_000n,
+      authenticatorData: new Uint8Array(37),
+      clientDataJson: new TextEncoder().encode("{}"),
+    });
+
+    expect(instruction.keys).toHaveLength(6);
+    expect(instruction.keys[3]).toMatchObject({ pubkey: keys[3], isWritable: true });
+    expect(instruction.keys[5]?.pubkey).toEqual(SystemProgram.programId);
+    expect(instruction.data.slice(8, 40)).toEqual(new Uint8Array(32).fill(30));
+    expect(instruction.data.slice(40, 72)).toEqual(new Uint8Array(32).fill(31));
   });
 });

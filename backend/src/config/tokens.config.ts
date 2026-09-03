@@ -1,8 +1,8 @@
 /**
  * Supported settlement tokens.
  *
- * The Solana edition intentionally supports native USDC only. Keeping one mint
- * makes every session cap, escrow, pool, and yield instruction unambiguous.
+ * USDC supports bounded session transfers. Native SOL is passkey-only because
+ * existing session limits are denominated in six-decimal USDC units.
  */
 
 import { SOLANA_USDC_MINT } from '../chains/solana/solana-account';
@@ -106,6 +106,7 @@ const MONTHLY_MULTIPLE = 20;
 
 const TOKEN_REGISTRY: readonly TokenDefinition[] = [
   { symbol: 'USDC', name: 'USD Coin', envKey: 'SOLANA_USDC_MINT', decimals: 6, icon: 'USDC', usdPeg: 1 },
+  { symbol: 'SOL', name: 'Solana', native: true, decimals: 9, icon: 'SOL' },
 ];
 
 export function getSupportedTokens(): Record<string, TokenInfo> {

@@ -13,9 +13,13 @@ import {
   createGrantSessionInstruction,
   createInitializeVaultAndGrantSessionInstruction,
   createPasskeyTransferInstruction,
+  createSolPasskeyTransferInstruction,
+  createSolPaymentLinkWithPasskeyInstruction,
   clusterDomainFromGenesisHash,
   deriveSession,
   initializeVaultAndGrantSessionChallenge,
+  solPaymentLinkChallenge,
+  solTransferChallenge,
   sessionGrantChallenge,
   transferChallenge,
   SESSION_ACTION_TRANSFER,
@@ -35,7 +39,7 @@ import {
 import { SolanaRelayerService } from './solana-relayer.service';
 
 const PREPARE_TTL_MS = 5 * 60 * 1000;
-type ActionKind = 'transfer' | 'session_grant';
+type ActionKind = 'transfer' | 'sol_transfer' | 'sol_payment_link' | 'session_grant';
 
 interface PreparedAction {
   userId: string;
@@ -68,6 +72,14 @@ export class SolanaPasskeyExecutionService {
     amount: number;
     toLabel: string;
   }) {
+    if (params.tokenSymbol.toUpperCase() === 'SOL') {
+      return this.prepareSolTransfer({
+        userId: params.userId,
+        recipientAddress: params.recipientAddress,
+        amount: params.amount,
+        toLabel: params.toLabel,
+      });
+    }
     if (params.tokenAddress !== this.solana.stablecoinMint.toBase58() || params.tokenDecimals !== 6) {
       throw new BadRequestException('The Solana edition supports native USDC only');
     }
@@ -104,6 +116,106 @@ export class SolanaPasskeyExecutionService {
       },
       summary: { to: params.toLabel, token: params.tokenSymbol, amount: params.amount },
     });
+  }
+
+  async prepareSolTransfer(params: {
+    userId: string;
+    recipientAddress: string;
+    amount: number;
+    toLabel: string;
+  }) {
+    const user = await this.userWithWallet(params.userId);
+    const vaultState = await this.solana.readVault(user.smartWallet.address);
+    if (!vaultState) throw new BadRequestException('Authorize your Solana vault before sending');
+    const expiresAtUnix = BigInt(Math.floor((Date.now() + PREPARE_TTL_MS) / 1000));
+    const amountLamports = solToLamports(params.amount);
+    const vault = new PublicKey(user.smartWallet.address);
+    const recipient = new PublicKey(params.recipientAddress);
+    const challenge = solTransferChallenge({
+      clusterDomain: clusterDomain(),
+      programId: this.solana.programId,
+      config: this.solana.configAddress,
+      vault,
+      recipient,
+      amountLamports,
+      vaultNonce: vaultState.nonce,
+      expiresAtUnix,
+    });
+    return this.stage({
+      userId: params.userId,
+      vaultAddress: user.smartWallet.address,
+      challengeB64Url: bytesToBase64Url(challenge),
+      kind: 'sol_transfer',
+      expiresAtUnix: expiresAtUnix.toString(),
+      payload: {
+        recipientAddress: recipient.toBase58(),
+        amountLamports: amountLamports.toString(),
+        vaultNonce: vaultState.nonce.toString(),
+      },
+      summary: { to: params.toLabel, token: 'SOL', amount: params.amount },
+    });
+  }
+
+  async prepareSolPaymentLink(params: {
+    userId: string;
+    recipientHandle: string;
+    platform: string;
+    amount: number;
+    fromUser?: string;
+  }) {
+    const user = await this.userWithWallet(params.userId);
+    const vaultState = await this.solana.readVault(user.smartWallet.address);
+    if (!vaultState) throw new BadRequestException('Authorize your Solana vault before sending');
+    const expiresAtUnix = BigInt(Math.floor((Date.now() + PREPARE_TTL_MS) / 1000));
+    const linkExpiresAtUnix = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60);
+    const amountLamports = solToLamports(params.amount);
+    const targetHandle = normalizeHandle(params.recipientHandle);
+    const shortLink = await this.relayer.createPendingSolPaymentLink({
+      userId: user.id,
+      recipientHandle: targetHandle,
+      platform: params.platform,
+      amount: params.amount,
+      fromUser: params.fromUser || user.username || 'sender',
+      expiresAt: new Date(Number(linkExpiresAtUnix) * 1000),
+    });
+    const linkId = crypto.createHash('sha256').update(shortLink.code).digest();
+    const recipientCommitment = paymentLinkRecipientCommitment(params.platform, targetHandle);
+    const vault = new PublicKey(user.smartWallet.address);
+    const paymentLink = this.solana.paymentLinkAddress(user.smartWallet.address, linkId);
+    const challenge = solPaymentLinkChallenge({
+      clusterDomain: clusterDomain(),
+      programId: this.solana.programId,
+      config: this.solana.configAddress,
+      vault,
+      paymentLink,
+      linkId,
+      recipientCommitment,
+      amountLamports,
+      linkExpiresAtUnix,
+      vaultNonce: vaultState.nonce,
+      proofExpiresAtUnix: expiresAtUnix,
+    });
+    return {
+      ...(await this.stage({
+        userId: params.userId,
+        vaultAddress: user.smartWallet.address,
+        challengeB64Url: bytesToBase64Url(challenge),
+        kind: 'sol_payment_link',
+        expiresAtUnix: expiresAtUnix.toString(),
+        payload: {
+          code: shortLink.code,
+          paymentLink: paymentLink.toBase58(),
+          linkId: bytesToBase64Url(linkId),
+          recipientCommitment: bytesToBase64Url(recipientCommitment),
+          amountLamports: amountLamports.toString(),
+          linkExpiresAtUnix: linkExpiresAtUnix.toString(),
+          vaultNonce: vaultState.nonce.toString(),
+        },
+        summary: { to: params.recipientHandle, token: 'SOL', amount: params.amount },
+      })),
+      code: shortLink.code,
+      shortUrl: shortLink.shortUrl,
+    };
   }
 
   async prepareSessionGrant(params: {
@@ -258,6 +370,35 @@ export class SolanaPasskeyExecutionService {
       beforeVerification = [
         this.solana.createRecipientAtaInstruction(String(prepared.payload.recipientAddress)),
       ];
+    } else if (prepared.kind === 'sol_transfer') {
+      instruction = createSolPasskeyTransferInstruction({
+        payer: this.solana.feePayer.publicKey,
+        config: this.solana.configAddress,
+        vault: new PublicKey(prepared.vaultAddress),
+        recipient: new PublicKey(String(prepared.payload.recipientAddress)),
+        amountLamports: BigInt(String(prepared.payload.amountLamports)),
+        vaultNonce: BigInt(String(prepared.payload.vaultNonce)),
+        proofExpiresAt: expiresAtUnix,
+        authenticatorData: proof.authenticatorData,
+        clientDataJson: proof.clientDataJson,
+        programId: this.solana.programId,
+      });
+    } else if (prepared.kind === 'sol_payment_link') {
+      instruction = createSolPaymentLinkWithPasskeyInstruction({
+        payer: this.solana.feePayer.publicKey,
+        config: this.solana.configAddress,
+        vault: new PublicKey(prepared.vaultAddress),
+        paymentLink: new PublicKey(String(prepared.payload.paymentLink)),
+        linkId: base64UrlToBytes(String(prepared.payload.linkId)),
+        recipientCommitment: base64UrlToBytes(String(prepared.payload.recipientCommitment)),
+        amountLamports: BigInt(String(prepared.payload.amountLamports)),
+        linkExpiresAtUnix: BigInt(String(prepared.payload.linkExpiresAtUnix)),
+        vaultNonce: BigInt(String(prepared.payload.vaultNonce)),
+        proofExpiresAt: expiresAtUnix,
+        authenticatorData: proof.authenticatorData,
+        clientDataJson: proof.clientDataJson,
+        programId: this.solana.programId,
+      });
     } else {
       const sessionPublicKey = new PublicKey(String(prepared.payload.sessionPublicKey));
       const shared = {
@@ -295,6 +436,13 @@ export class SolanaPasskeyExecutionService {
       instruction,
       beforeVerification,
     });
+    if (prepared.kind === 'sol_payment_link') {
+      await this.relayer.activateSolPaymentLink({
+        code: String(prepared.payload.code),
+        paymentLinkAddress: String(prepared.payload.paymentLink),
+        fundingTxHash: confirmed.signature,
+      });
+    }
     await this.prisma.$transaction([
       this.prisma.passkeyCredential.update({
         where: { id: credential.id },
@@ -339,6 +487,26 @@ export class SolanaPasskeyExecutionService {
 function amountToAtomic(amount: number): bigint {
   if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Amount must be positive');
   return BigInt(amount.toFixed(6).replace('.', ''));
+}
+
+function solToLamports(amount: number): bigint {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
+    throw new BadRequestException('SOL amount must be positive and finite');
+  }
+  return BigInt(amount.toFixed(9).replace('.', ''));
+}
+
+function normalizeHandle(value: string): string {
+  return value.trim().replace(/^@/, '').toLowerCase();
+}
+
+function paymentLinkRecipientCommitment(platform: string, handle: string): Buffer {
+  return crypto.createHash('sha256')
+    .update('veriagent:solana:payment-link-recipient:v1\0')
+    .update(platform.toLowerCase())
+    .update('\0')
+    .update(normalizeHandle(handle))
+    .digest();
 }
 
 function clusterDomain(): Uint8Array {

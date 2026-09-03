@@ -6,6 +6,9 @@ import {
   ACTION_INITIALIZE_VAULT,
   ACTION_GRANT_SESSION,
   ACTION_INITIALIZE_VAULT_AND_GRANT_SESSION,
+  ACTION_CANCEL_SOL_PAYMENT_LINK,
+  ACTION_CREATE_SOL_PAYMENT_LINK,
+  ACTION_TRANSFER_SOL,
   ACTION_TRANSFER,
   CHALLENGE_DOMAIN,
 } from "./constants.js";
@@ -58,6 +61,41 @@ export interface InitializeVaultAndGrantSessionChallengeInput
   rootPublicKey: Uint8Array;
   rootKeyHash: Uint8Array;
   userSalt: Uint8Array;
+}
+
+export interface SolTransferChallengeInput {
+  clusterDomain: Uint8Array;
+  programId: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  recipient: PublicKey;
+  amountLamports: bigint;
+  vaultNonce: bigint;
+  expiresAtUnix: bigint;
+}
+
+export interface SolPaymentLinkChallengeInput {
+  clusterDomain: Uint8Array;
+  programId: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  paymentLink: PublicKey;
+  linkId: Uint8Array;
+  recipientCommitment: Uint8Array;
+  amountLamports: bigint;
+  linkExpiresAtUnix: bigint;
+  vaultNonce: bigint;
+  proofExpiresAtUnix: bigint;
+}
+
+export interface CancelSolPaymentLinkChallengeInput {
+  clusterDomain: Uint8Array;
+  programId: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  paymentLink: PublicKey;
+  vaultNonce: bigint;
+  proofExpiresAtUnix: bigint;
 }
 
 export function challenge(parts: readonly Uint8Array[]): Uint8Array {
@@ -158,6 +196,57 @@ export function initializeVaultAndGrantSessionChallenge(
     i64Le(input.validUntilUnix),
     u64Le(0n),
     i64Le(input.expiresAtUnix),
+  ]);
+}
+
+export function solTransferChallenge(input: SolTransferChallengeInput): Uint8Array {
+  assertBytes(input.clusterDomain, 32, "cluster domain");
+  return challenge([
+    input.clusterDomain,
+    input.programId.toBytes(),
+    Uint8Array.of(ACTION_TRANSFER_SOL),
+    input.config.toBytes(),
+    input.vault.toBytes(),
+    input.recipient.toBytes(),
+    u64Le(input.amountLamports),
+    u64Le(input.vaultNonce),
+    i64Le(input.expiresAtUnix),
+  ]);
+}
+
+export function solPaymentLinkChallenge(input: SolPaymentLinkChallengeInput): Uint8Array {
+  assertBytes(input.clusterDomain, 32, "cluster domain");
+  assertBytes(input.linkId, 32, "payment-link ID");
+  assertBytes(input.recipientCommitment, 32, "recipient commitment");
+  return challenge([
+    input.clusterDomain,
+    input.programId.toBytes(),
+    Uint8Array.of(ACTION_CREATE_SOL_PAYMENT_LINK),
+    input.config.toBytes(),
+    input.vault.toBytes(),
+    input.paymentLink.toBytes(),
+    input.linkId,
+    input.recipientCommitment,
+    u64Le(input.amountLamports),
+    i64Le(input.linkExpiresAtUnix),
+    u64Le(input.vaultNonce),
+    i64Le(input.proofExpiresAtUnix),
+  ]);
+}
+
+export function cancelSolPaymentLinkChallenge(
+  input: CancelSolPaymentLinkChallengeInput,
+): Uint8Array {
+  assertBytes(input.clusterDomain, 32, "cluster domain");
+  return challenge([
+    input.clusterDomain,
+    input.programId.toBytes(),
+    Uint8Array.of(ACTION_CANCEL_SOL_PAYMENT_LINK),
+    input.config.toBytes(),
+    input.vault.toBytes(),
+    input.paymentLink.toBytes(),
+    u64Le(input.vaultNonce),
+    i64Le(input.proofExpiresAtUnix),
   ]);
 }
 

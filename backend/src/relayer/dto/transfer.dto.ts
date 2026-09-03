@@ -25,7 +25,7 @@ export class TransferDto {
   to!: string;
 
   @IsString()
-  @Matches(/^USDC$/i, { message: 'token must be USDC on Solana' })
+  @Matches(/^(USDC|SOL)$/i, { message: 'token must be USDC or SOL on Solana' })
   token!: string;
 
   /**

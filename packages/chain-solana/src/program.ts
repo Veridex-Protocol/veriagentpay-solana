@@ -170,6 +170,63 @@ export interface RefundExpiredPaymentLinkInstructionInput {
   programId?: PublicKey;
 }
 
+export interface SolPasskeyTransferInstructionInput {
+  payer: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  recipient: PublicKey;
+  amountLamports: bigint;
+  vaultNonce: bigint;
+  proofExpiresAt: bigint;
+  authenticatorData: Uint8Array;
+  clientDataJson: Uint8Array;
+  programId?: PublicKey;
+}
+
+export interface CreateSolPaymentLinkWithPasskeyInstructionInput {
+  payer: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  paymentLink: PublicKey;
+  linkId: Uint8Array;
+  recipientCommitment: Uint8Array;
+  amountLamports: bigint;
+  linkExpiresAtUnix: bigint;
+  vaultNonce: bigint;
+  proofExpiresAt: bigint;
+  authenticatorData: Uint8Array;
+  clientDataJson: Uint8Array;
+  programId?: PublicKey;
+}
+
+export interface ClaimSolPaymentLinkInstructionInput {
+  claimAuthority: PublicKey;
+  config: PublicKey;
+  claimAuthorityConfig: PublicKey;
+  recipientVault: PublicKey;
+  paymentLink: PublicKey;
+  programId?: PublicKey;
+}
+
+export interface CancelSolPaymentLinkWithPasskeyInstructionInput {
+  payer: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  paymentLink: PublicKey;
+  vaultNonce: bigint;
+  proofExpiresAt: bigint;
+  authenticatorData: Uint8Array;
+  clientDataJson: Uint8Array;
+  programId?: PublicKey;
+}
+
+export interface RefundExpiredSolPaymentLinkInstructionInput {
+  config: PublicKey;
+  senderVault: PublicKey;
+  paymentLink: PublicKey;
+  programId?: PublicKey;
+}
+
 export interface DecodedSession {
   version: number;
   bump: number;
@@ -601,6 +658,116 @@ export function createRefundExpiredPaymentLinkInstruction(
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: Buffer.from(sha256(utf8("global:refund_expired_payment_link")).slice(0, 8)),
+  });
+}
+
+export function createSolPasskeyTransferInstruction(
+  input: SolPasskeyTransferInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.payer, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.vault, isSigner: false, isWritable: true },
+      { pubkey: input.recipient, isSigner: false, isWritable: true },
+      { pubkey: INSTRUCTIONS_SYSVAR_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(concatBytes(
+      sha256(utf8("global:transfer_sol_with_passkey")).slice(0, 8),
+      u64Le(input.amountLamports),
+      u64Le(input.vaultNonce),
+      i64Le(input.proofExpiresAt),
+      encodeVector(input.authenticatorData),
+      encodeVector(input.clientDataJson),
+    )),
+  });
+}
+
+export function createSolPaymentLinkWithPasskeyInstruction(
+  input: CreateSolPaymentLinkWithPasskeyInstructionInput,
+): TransactionInstruction {
+  if (input.linkId.length !== 32 || input.recipientCommitment.length !== 32) {
+    throw new Error("Payment-link ID and recipient commitment must each contain 32 bytes");
+  }
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.payer, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.vault, isSigner: false, isWritable: true },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+      { pubkey: INSTRUCTIONS_SYSVAR_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(concatBytes(
+      sha256(utf8("global:create_sol_payment_link_with_passkey")).slice(0, 8),
+      input.linkId,
+      input.recipientCommitment,
+      u64Le(input.amountLamports),
+      i64Le(input.linkExpiresAtUnix),
+      u64Le(input.vaultNonce),
+      i64Le(input.proofExpiresAt),
+      encodeVector(input.authenticatorData),
+      encodeVector(input.clientDataJson),
+    )),
+  });
+}
+
+export function createClaimSolPaymentLinkInstruction(
+  input: ClaimSolPaymentLinkInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.claimAuthority, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.claimAuthorityConfig, isSigner: false, isWritable: false },
+      { pubkey: input.recipientVault, isSigner: false, isWritable: true },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+    ],
+    data: Buffer.from(sha256(utf8("global:claim_sol_payment_link")).slice(0, 8)),
+  });
+}
+
+export function createCancelSolPaymentLinkWithPasskeyInstruction(
+  input: CancelSolPaymentLinkWithPasskeyInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.payer, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.vault, isSigner: false, isWritable: true },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+      { pubkey: INSTRUCTIONS_SYSVAR_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(concatBytes(
+      sha256(utf8("global:cancel_sol_payment_link_with_passkey")).slice(0, 8),
+      u64Le(input.vaultNonce),
+      i64Le(input.proofExpiresAt),
+      encodeVector(input.authenticatorData),
+      encodeVector(input.clientDataJson),
+    )),
+  });
+}
+
+export function createRefundExpiredSolPaymentLinkInstruction(
+  input: RefundExpiredSolPaymentLinkInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.senderVault, isSigner: false, isWritable: true },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+    ],
+    data: Buffer.from(sha256(utf8("global:refund_expired_sol_payment_link")).slice(0, 8)),
   });
 }
 

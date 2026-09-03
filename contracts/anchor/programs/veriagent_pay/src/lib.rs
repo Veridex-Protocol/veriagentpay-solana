@@ -3,12 +3,14 @@ use anchor_lang::prelude::*;
 pub mod auth;
 pub mod constants;
 pub mod errors;
+pub mod native_sol;
 pub mod payment_links;
 pub mod protocol;
 pub mod state;
 pub mod wallet;
 
 use protocol::*;
+use native_sol::*;
 use payment_links::*;
 use wallet::*;
 
@@ -87,5 +89,36 @@ pub mod veriagent_pay {
 
     pub fn refund_expired_payment_link(ctx: Context<RefundExpiredPaymentLink>) -> Result<()> {
         payment_links::refund_expired_payment_link(ctx)
+    }
+
+    pub fn transfer_sol_with_passkey(
+        ctx: Context<TransferSolWithPasskey>,
+        args: SolPasskeyTransferArgs,
+    ) -> Result<()> {
+        native_sol::transfer_sol_with_passkey(ctx, args)
+    }
+
+    pub fn create_sol_payment_link_with_passkey(
+        ctx: Context<CreateSolPaymentLinkWithPasskey>,
+        args: CreateSolPaymentLinkWithPasskeyArgs,
+    ) -> Result<()> {
+        payment_links::create_sol_payment_link_with_passkey(ctx, args)
+    }
+
+    pub fn claim_sol_payment_link(ctx: Context<ClaimSolPaymentLink>) -> Result<()> {
+        payment_links::claim_sol_payment_link(ctx)
+    }
+
+    pub fn cancel_sol_payment_link_with_passkey(
+        ctx: Context<CancelSolPaymentLinkWithPasskey>,
+        args: CancelSolPaymentLinkWithPasskeyArgs,
+    ) -> Result<()> {
+        payment_links::cancel_sol_payment_link_with_passkey(ctx, args)
+    }
+
+    pub fn refund_expired_sol_payment_link(
+        ctx: Context<RefundExpiredSolPaymentLink>,
+    ) -> Result<()> {
+        payment_links::refund_expired_sol_payment_link(ctx)
     }
 }

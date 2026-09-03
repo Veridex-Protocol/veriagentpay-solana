@@ -14,6 +14,7 @@ import { ActivityService } from '../activity/activity.service';
 import { SolanaChainService } from '../chains/solana/solana-chain.service';
 import { encryptSymmetric, decryptSymmetric } from './symmetric-crypto';
 import { unwrapDataKey, wrapDataKey } from './key-wrapping';
+import { getAppBaseUrl } from '../config/app-url.config';
 
 function wrapContext(keyHash?: string): Record<string, string> {
   return keyHash ? { purpose: 'session-key', keyHash } : { purpose: 'session-key' };
@@ -319,6 +320,58 @@ export class SolanaRelayerService {
       paymentLinkAddress,
     });
     return { success: true as const, txHash: confirmed.signature };
+  }
+
+  async createPendingSolPaymentLink(params: {
+    userId: string;
+    recipientHandle: string;
+    platform: string;
+    amount: number;
+    fromUser: string;
+    expiresAt: Date;
+  }) {
+    let code = '';
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      code = crypto.randomBytes(6).toString('base64url').slice(0, 8);
+      if (!await this.prisma.shortLink.findUnique({ where: { code } })) break;
+      code = '';
+    }
+    if (!code) throw new BadRequestException('Could not allocate a unique payment-link code');
+    await this.prisma.shortLink.create({
+      data: {
+        code,
+        kind: 'pay',
+        senderUserId: params.userId,
+        targetUserId: params.recipientHandle,
+        amount: params.amount,
+        token: 'SOL',
+        fromUser: params.fromUser,
+        platform: params.platform,
+        status: 'PENDING',
+        expiresAt: params.expiresAt,
+        src: params.platform,
+        campaign: 'pay',
+      },
+    });
+    return {
+      code,
+      shortUrl: `${getAppBaseUrl().replace(/\/$/, '')}/c/${code}?src=${encodeURIComponent(params.platform)}&campaign=pay`,
+    };
+  }
+
+  async activateSolPaymentLink(params: {
+    code: string;
+    paymentLinkAddress: string;
+    fundingTxHash: string;
+  }) {
+    return this.prisma.shortLink.update({
+      where: { code: params.code },
+      data: {
+        envelopeId: params.paymentLinkAddress,
+        fundingTxHash: params.fundingTxHash,
+        status: 'ACTIVE',
+      },
+    });
   }
 
   async readPaymentLink(paymentLinkAddress: string) {
