@@ -356,7 +356,7 @@ export class SolanaPasskeyExecutionService {
       id: string;
       response: { authenticatorData: string; clientDataJSON: string; signature: string };
     };
-  }): Promise<{ txHash: string; success: true; kind: ActionKind; code?: string; shortUrl?: string }> {
+  }): Promise<{ txHash: string; success: true; kind: ActionKind; code?: string; shortUrl?: string; summary?: Record<string, unknown> }> {
     const prepared = await this.redis.takeJson<PreparedAction>(`passkey:prepare:${params.prepareId}`);
     if (!prepared) throw new BadRequestException('Approval expired or was already used');
     if (prepared.userId !== params.userId) {
@@ -523,6 +523,7 @@ export class SolanaPasskeyExecutionService {
       txHash: confirmed.signature,
       success: true,
       kind: prepared.kind,
+      summary: prepared.summary,
       ...(prepared.kind === 'sol_payment_link'
         ? {
             code: String(prepared.payload.code),

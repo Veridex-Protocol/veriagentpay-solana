@@ -26,7 +26,23 @@ import { deriveTokenLimits, getSupportedTokens } from '../config/tokens.config';
 /** How long a prepared action may sit before the user must start over. */
 const PREPARE_TTL_MS = 5 * 60 * 1000;
 
-type ActionKind = 'transfer' | 'session_grant' | 'policy_update' | 'token_limit';
+export type ActionKind =
+  | 'transfer'
+  | 'sol_transfer'
+  | 'sol_payment_link'
+  | 'sol_payment_link_cancel'
+  | 'session_grant'
+  | 'policy_update'
+  | 'token_limit';
+
+export interface PasskeyActionResult {
+  txHash: string;
+  success: boolean;
+  kind: ActionKind;
+  code?: string;
+  shortUrl?: string;
+  summary?: Record<string, unknown>;
+}
 
 interface PreparedAction {
   userId: string;
@@ -569,7 +585,7 @@ export class PasskeyExecutionService {
     userId: string;
     prepareId: string;
     assertion: { id: string; response: { authenticatorData: string; clientDataJSON: string; signature: string } };
-  }): Promise<{ txHash: string; success: boolean; kind: ActionKind }> {
+  }): Promise<PasskeyActionResult> {
     const prepared = await this.redis.takeJson<PreparedAction>(
       `passkey:prepare:${params.prepareId}`,
     );

@@ -294,25 +294,29 @@ export class RelayTransferController {
       throw new BadRequestException('prepareId and assertion are required');
     }
 
-    const result: {
-      txHash: string;
-      success: boolean;
-      kind: string;
-      code?: string;
-      shortUrl?: string;
-    } = await this.passkeyExecution.executeAction({
+    const result = await this.passkeyExecution.executeAction({
       userId,
       prepareId: body.prepareId,
       assertion: body.assertion,
     });
 
     if (result.kind !== 'sol_payment_link_cancel') {
+      const amount = typeof result.summary?.amount === 'number' ? result.summary.amount : undefined;
+      const token = typeof result.summary?.token === 'string' ? result.summary.token : undefined;
+      const destination = typeof result.summary?.to === 'string' ? result.summary.to : undefined;
       this.activityService
         .record({
           userIdentifier: userId,
           action: result.kind === 'sol_payment_link' ? 'ENVELOPE_CREATED' : 'TRANSFER_SENT',
+          amount,
+          token,
           txHash: result.txHash,
-          metadata: { method: 'executeWithPasskey', kind: result.kind, code: result.code },
+          metadata: {
+            method: 'executeWithPasskey',
+            kind: result.kind,
+            code: result.code,
+            to: destination,
+          },
         })
         .catch(() => {});
     }
