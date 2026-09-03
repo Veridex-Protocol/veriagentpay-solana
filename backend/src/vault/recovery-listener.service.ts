@@ -33,6 +33,10 @@ export class RecoveryListenerService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
+    if (process.env.EVM_RECOVERY_LISTENER_ENABLED !== 'true') {
+      this.logger.log('EVM recovery listener disabled for this deployment.');
+      return;
+    }
     this.provider = createBotChainProvider();
     const network = await this.provider.getNetwork();
     this.chainId = Number(network.chainId);

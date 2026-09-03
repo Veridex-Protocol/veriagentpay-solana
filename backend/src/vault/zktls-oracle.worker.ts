@@ -119,7 +119,16 @@ export class ZkTlsOracleWorker implements OnModuleInit {
   private lastAttestationTime: Date | null = null;
   private isAttesting = false;
 
+  private get enabled(): boolean {
+    return process.env.ZKTLS_ORACLE_ENABLED === 'true';
+  }
+
   async onModuleInit() {
+    if (!this.enabled) {
+      this.logger.log('zkTLS EVM oracle worker disabled for this deployment.');
+      return;
+    }
+
     if (!this.veridexOracleAddress || !ethers.isAddress(this.veridexOracleAddress)) {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
@@ -162,12 +171,14 @@ export class ZkTlsOracleWorker implements OnModuleInit {
   // Execute a full attestation cycle every 12 hours
   @Cron(CronExpression.EVERY_12_HOURS)
   async scheduledAttestation() {
+    if (!this.enabled) return;
     await this.fetchAndAttestYields(false);
   }
 
   // Execute a targeted check every 10 minutes to verify if APY fluctuates significantly
   @Cron('0 */10 * * * *')
   async fluctuationCheck() {
+    if (!this.enabled) return;
     await this.fetchAndAttestYields(true);
   }
 
