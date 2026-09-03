@@ -2,9 +2,26 @@ import { describe, expect, test } from "bun:test";
 
 import {
   base64UrlToBytes,
+  bytesToBase64Url,
   derToCompactLowS,
   veridexSignatureToAssertion,
 } from "../src";
+
+describe("base64url encoding", () => {
+  test("round-trips URL-safe characters without padding", () => {
+    const bytes = Uint8Array.from([0xfb, 0xff, 0xef, 0x01]);
+    const encoded = bytesToBase64Url(bytes);
+
+    expect(encoded).toBe("-__vAQ");
+    expect(base64UrlToBytes(encoded)).toEqual(bytes);
+  });
+
+  test("rejects padding, non-URL-safe characters, and impossible lengths", () => {
+    expect(() => base64UrlToBytes("YQ==")).toThrow("Value is not unpadded base64url");
+    expect(() => base64UrlToBytes("ab+c")).toThrow("Value is not unpadded base64url");
+    expect(() => base64UrlToBytes("a")).toThrow("Value is not unpadded base64url");
+  });
+});
 
 describe("Veridex PasskeyManager assertion adapter", () => {
   test("round-trips normalized SDK scalars through canonical DER", () => {

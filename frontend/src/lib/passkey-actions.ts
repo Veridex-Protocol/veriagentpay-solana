@@ -18,8 +18,17 @@
  */
 
 import { api } from './api';
-import { base64UrlToBytes, veridexSignatureToAssertion } from '@veriagent/chain-solana';
+import { veridexSignatureToAssertion } from '@veriagent/chain-solana';
 import { awaitDocumentFocus, passkeyManager, signWithBiometrics } from './veridex';
+
+function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
+  if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) {
+    throw new Error('Value is not unpadded base64url');
+  }
+  const padding = '='.repeat((4 - (value.length % 4)) % 4);
+  const decoded = atob(value.replace(/-/g, '+').replace(/_/g, '/') + padding);
+  return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+}
 
 /**
  * WebAuthn wants raw bytes; the backend sends base64url, as embedded in
@@ -52,7 +61,7 @@ async function signChallenge(challengeB64Url: string) {
   // bubble still holds focus, and an unfocused document cannot prompt.
   await awaitDocumentFocus();
 
-  const challenge = base64UrlToBytes(challengeB64Url);
+  const challenge = decodeBase64Url(challengeB64Url);
   const signature = await signWithBiometrics(challenge);
   const credential = passkeyManager.getCredential();
   if (!credential) throw new Error('No Veridex passkey is active for this account.');

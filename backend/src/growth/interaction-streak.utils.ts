@@ -1,3 +1,5 @@
+import { UserActivityAction } from '@prisma/client';
+
 export interface InteractionStreakState {
   currentStreak: number;
   longestStreak: number;
@@ -48,6 +50,18 @@ export const QUALIFYING_STREAK_ACTIONS = new Set([
   'BOT_COMMAND',
   'APP_LOGIN',
 ]);
+
+/** Qualifying actions that are persisted in UserActivityLog and can be queried as Prisma enums. */
+export const QUALIFYING_STREAK_ACTIVITY_ACTIONS: readonly UserActivityAction[] = [
+  UserActivityAction.TRANSFER_SENT,
+  UserActivityAction.REQUEST_CREATED,
+  UserActivityAction.REQUEST_PAID,
+  UserActivityAction.SPLIT_CREATED,
+  UserActivityAction.SPLIT_PAID,
+  UserActivityAction.ENVELOPE_CREATED,
+  UserActivityAction.ENVELOPE_CLAIMED,
+  UserActivityAction.REFERRAL_REGISTERED,
+];
 
 /**
  * Calculates the next streak state for an eligible interaction.

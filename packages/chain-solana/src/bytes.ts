@@ -49,14 +49,20 @@ export function encodeVector(value: Uint8Array): Uint8Array {
 }
 
 export function bytesToBase64Url(value: Uint8Array): string {
-  return Buffer.from(value).toString("base64url");
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 export function base64UrlToBytes(value: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+  if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) {
     throw new Error("Value is not unpadded base64url");
   }
-  return new Uint8Array(Buffer.from(value, "base64url"));
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/") + padding;
+  return new Uint8Array(Buffer.from(base64, "base64"));
 }
 
 export function bytesToHex(value: Uint8Array): string {

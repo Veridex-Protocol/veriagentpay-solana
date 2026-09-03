@@ -1,14 +1,14 @@
 import { sha256 } from "@noble/hashes/sha256";
 import type { PublicKey } from "@solana/web3.js";
 
-import { concatBytes, i64Le, u64Le } from "./bytes";
+import { concatBytes, i64Le, u64Le } from "./bytes.js";
 import {
   ACTION_INITIALIZE_VAULT,
   ACTION_GRANT_SESSION,
   ACTION_INITIALIZE_VAULT_AND_GRANT_SESSION,
   ACTION_TRANSFER,
   CHALLENGE_DOMAIN,
-} from "./constants";
+} from "./constants.js";
 
 export interface InitializeVaultChallengeInput {
   clusterDomain: Uint8Array;

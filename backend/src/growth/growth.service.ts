@@ -2,7 +2,11 @@ import { Inject, Injectable, NotFoundException, BadRequestException, Logger } fr
 import { NOTIFICATIONS_STORE, type NotificationStore } from '../common/service-contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import { getAppBaseUrl } from '../config/app-url.config';
-import { calculateInteractionStreakUpdate, QUALIFYING_STREAK_ACTIONS } from './interaction-streak.utils';
+import {
+  calculateInteractionStreakUpdate,
+  QUALIFYING_STREAK_ACTIONS,
+  QUALIFYING_STREAK_ACTIVITY_ACTIONS,
+} from './interaction-streak.utils';
 
 @Injectable()
 export class GrowthService {
@@ -256,12 +260,11 @@ export class GrowthService {
 
     // Activity history for the last 30 days powers the streak calendar.
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const qualifyingActions = [...QUALIFYING_STREAK_ACTIONS];
     const activities = await this.prisma.userActivityLog.findMany({
       where: {
         userId,
         createdAt: { gte: since },
-        action: { in: qualifyingActions as any },
+        action: { in: [...QUALIFYING_STREAK_ACTIVITY_ACTIONS] },
       },
       select: { createdAt: true },
       orderBy: { createdAt: 'asc' },

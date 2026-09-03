@@ -11,14 +11,14 @@ import {
 } from "@solana/spl-token";
 import { Buffer } from "buffer";
 
-import { concatBytes, encodeVector, i64Le, u64Le, utf8 } from "./bytes";
+import { concatBytes, encodeVector, i64Le, u64Le, utf8 } from "./bytes.js";
 import {
   INSTRUCTIONS_SYSVAR_ID,
   PROTOCOL_SEED,
   SESSION_SEED,
   VAULT_SEED,
   VERIAGENT_PROGRAM_ID,
-} from "./constants";
+} from "./constants.js";
 
 const VAULT_NONCE_OFFSET = 8 + 1 + 1 + 33 + 32 + 32;
 const VAULT_ACCOUNT_SIZE = VAULT_NONCE_OFFSET + 8 + 8;

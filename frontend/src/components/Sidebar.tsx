@@ -179,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = () => {
           >
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#F2D827]" />
-              <span className="text-[11px] font-medium">BOTChain Mainnet</span>
+              <span className="text-[11px] font-medium">Solana Devnet</span>
             </div>
             <span className="w-2 h-2 rounded-full bg-[#F2D827] animate-pulse" />
           </div>

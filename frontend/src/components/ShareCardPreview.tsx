@@ -119,7 +119,7 @@ export const ShareCardPreview: React.FC<ShareCardPreviewProps> = ({ cardData: ex
     ctx.font = 'bold 28px sans-serif';
     ctx.fillStyle = '#10b981';
     ctx.textAlign = 'right';
-    ctx.fillText('BOTChain Mainnet Verified', 1080, 160);
+    ctx.fillText('Solana Devnet Verified', 1080, 160);
     ctx.textAlign = 'left';
 
     ctx.strokeStyle = isDark ? '#334155' : '#dbe3ee';
@@ -208,7 +208,7 @@ export const ShareCardPreview: React.FC<ShareCardPreviewProps> = ({ cardData: ex
           </div>
           <span className="max-w-full text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#F2D827]/10 text-[#F2D827] border border-[#F2D827]/20 flex items-center space-x-1 whitespace-nowrap">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>BOTChain Mainnet</span>
+            <span>Solana Devnet</span>
           </span>
         </div>
 

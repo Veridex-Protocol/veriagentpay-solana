@@ -5,6 +5,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SystemProgram,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
@@ -90,6 +91,9 @@ export class SolanaChainService {
     const account = await this.connection.getAccountInfo(publicKey, this.commitment);
     if (!account) return null;
     if (!account.owner.equals(this.programId)) {
+      if (account.owner.equals(SystemProgram.programId) && account.data.length === 0) {
+        return null;
+      }
       throw new BadRequestException('Vault address is not owned by the VeriAgent Solana program');
     }
     return decodeVaultAccount(account.data);

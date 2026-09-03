@@ -1,5 +1,26 @@
 import * as dotenv from 'dotenv';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 dotenv.config();
+
+const sharedDevelopmentEnv = resolve(__dirname, '../../../backend/.env');
+if (!process.env.JWT_SECRET && existsSync(sharedDevelopmentEnv)) {
+  dotenv.config({ path: sharedDevelopmentEnv });
+}
+
+const tunnelDeploymentPath = resolve(__dirname, '../../deployments/devnet-tunnel.json');
+if (!process.env.SOLANA_PROGRAM_ID && existsSync(tunnelDeploymentPath)) {
+  const deployment = JSON.parse(readFileSync(tunnelDeploymentPath, 'utf8'));
+  if (!process.env.RP_ID || process.env.RP_ID === deployment.webauthn.rpId) {
+    process.env.SOLANA_CHAIN_REF ??= deployment.network;
+    process.env.SOLANA_CLUSTER_DOMAIN ??= deployment.genesisHash;
+    process.env.SOLANA_PROGRAM_ID ??= deployment.programId;
+    process.env.SOLANA_RPC_URL ??= deployment.clusterRpc;
+    process.env.SOLANA_USDC_MINT ??= deployment.stablecoinMint;
+    process.env.WEBAUTHN_ORIGIN ??= deployment.webauthn.origin;
+  }
+}
 
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';

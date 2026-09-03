@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { calculateInteractionStreakUpdate } from './interaction-streak.utils';
+import {
+  calculateInteractionStreakUpdate,
+  QUALIFYING_STREAK_ACTIONS,
+  QUALIFYING_STREAK_ACTIVITY_ACTIONS,
+} from './interaction-streak.utils';
 
 const state = (overrides: Record<string, any> = {}) => ({
   currentStreak: 6,
@@ -40,5 +44,14 @@ describe('calculateInteractionStreakUpdate', () => {
       now,
     );
     expect(result).toMatchObject({ currentStreak: 7, gracePassUsed: true, lastGracePassUsedAt: now });
+  });
+});
+
+describe('qualifying streak actions', () => {
+  it('keeps synthetic interactions out of the persisted Prisma activity filter', () => {
+    expect(QUALIFYING_STREAK_ACTIONS.has('BOT_COMMAND')).toBe(true);
+    expect(QUALIFYING_STREAK_ACTIONS.has('APP_LOGIN')).toBe(true);
+    expect(QUALIFYING_STREAK_ACTIVITY_ACTIONS).not.toContain('BOT_COMMAND');
+    expect(QUALIFYING_STREAK_ACTIVITY_ACTIONS).not.toContain('APP_LOGIN');
   });
 });

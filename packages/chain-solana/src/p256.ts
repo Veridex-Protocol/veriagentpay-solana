@@ -2,8 +2,8 @@ import { sha256 } from "@noble/hashes/sha256";
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { Buffer } from "buffer";
 
-import { concatBytes } from "./bytes";
-import { SECP256R1_PROGRAM_ID } from "./constants";
+import { concatBytes } from "./bytes.js";
+import { SECP256R1_PROGRAM_ID } from "./constants.js";
 
 const CURVE_ORDER = 0xffff_ffff_0000_0000_ffff_ffff_ffff_ffff_bce6_faad_a717_9e84_f3b9_cac2_fc63_2551n;
 const HALF_CURVE_ORDER = CURVE_ORDER >> 1n;

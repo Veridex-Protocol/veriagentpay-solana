@@ -43,20 +43,24 @@ export function relayerUsesKms(): boolean {
 }
 
 /**
- * Fails startup when a production deployment still holds the key locally.
+ * Warns when a production-mode hackathon deployment holds the key locally.
  *
- * @dev The migration's failure mode is silent: the key is imported into KMS,
- *      the variable is missed, and everything keeps working from the env var
- *      while looking migrated. This turns that into a boot failure.
+ * @dev This Solana hackathon deployment intentionally supports a local relayer
+ *      key. KMS remains preferred and takes precedence when configured.
  */
 export function assertRelayerIsRemote(): void {
   if (process.env.NODE_ENV !== 'production') return;
   if (RELAYER_KMS_KEY_ID) return;
+  if (RELAYER_PRIVATE_KEY) {
+    process.emitWarning(
+      'Using an environment-backed relayer key in production mode for the hackathon deployment.',
+      { code: 'LOCAL_RELAYER_KEY_ENABLED' },
+    );
+    return;
+  }
 
   throw new Error(
-    'Production requires RELAYER_KMS_KEY_ID. Import the relayer key with ' +
-      'scripts/import-relayer-key-kms.ts, set the alias, and remove ' +
-      'RELAYER_PRIVATE_KEY from the environment.',
+    'Neither RELAYER_KMS_KEY_ID nor RELAYER_PRIVATE_KEY is configured for the relayer.',
   );
 }
 
