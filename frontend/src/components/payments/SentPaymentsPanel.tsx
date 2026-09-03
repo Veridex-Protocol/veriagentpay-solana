@@ -21,6 +21,7 @@ import { useCancelEscrow, useSentPayments } from '../../hooks/useApi';
 import { useTheme } from '../providers/ThemeProvider';
 import { VeriAgentLoader, VeriAgentLogoMark } from '../ui/VeriAgentLoader';
 import { useConfirm, useToast } from '../providers/NotificationProvider';
+import { cancelSolPaymentLinkWithPasskey } from '../../lib/passkey-actions';
 
 type PaymentStatus = 'all' | 'COMPLETED' | 'AWAITING_CLAIM' | 'CLAIMED' | 'CANCELLED' | 'EXPIRED';
 
@@ -88,7 +89,12 @@ export function SentPaymentsPanel() {
     setCancellingCode(code);
     setError(null);
     try {
-      await cancelEscrow.mutateAsync(code);
+      const payment = payments.find((candidate) => candidate.code === code);
+      if (payment?.token === 'SOL') {
+        await cancelSolPaymentLinkWithPasskey(code);
+      } else {
+        await cancelEscrow.mutateAsync(code);
+      }
       toast.success('Payment cancelled and funds restored to your wallet!', {
         title: 'Payment Cancelled',
       });

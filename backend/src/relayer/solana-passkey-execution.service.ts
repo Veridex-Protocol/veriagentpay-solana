@@ -14,12 +14,14 @@ import {
   createInitializeVaultAndGrantSessionInstruction,
   createPasskeyTransferInstruction,
   createSolPasskeyTransferInstruction,
+  createCancelSolPaymentLinkWithPasskeyInstruction,
   createSolPaymentLinkWithPasskeyInstruction,
   clusterDomainFromGenesisHash,
   deriveSession,
   initializeVaultAndGrantSessionChallenge,
   solPaymentLinkChallenge,
   solTransferChallenge,
+  cancelSolPaymentLinkChallenge,
   sessionGrantChallenge,
   transferChallenge,
   SESSION_ACTION_TRANSFER,
@@ -39,7 +41,7 @@ import {
 import { SolanaRelayerService } from './solana-relayer.service';
 
 const PREPARE_TTL_MS = 5 * 60 * 1000;
-type ActionKind = 'transfer' | 'sol_transfer' | 'sol_payment_link' | 'session_grant';
+type ActionKind = 'transfer' | 'sol_transfer' | 'sol_payment_link' | 'sol_payment_link_cancel' | 'session_grant';
 
 interface PreparedAction {
   userId: string;
@@ -218,6 +220,38 @@ export class SolanaPasskeyExecutionService {
     };
   }
 
+  async prepareCancelSolPaymentLink(params: { userId: string; code: string }) {
+    const link = await this.relayer.findOwnedSolPaymentLink(params.code, params.userId);
+    const user = await this.userWithWallet(params.userId);
+    const vaultState = await this.solana.readVault(user.smartWallet.address);
+    if (!vaultState) throw new BadRequestException('Authorize your Solana vault before cancelling');
+    const expiresAtUnix = BigInt(Math.floor((Date.now() + PREPARE_TTL_MS) / 1000));
+    const vault = new PublicKey(user.smartWallet.address);
+    const paymentLink = new PublicKey(link.envelopeId!);
+    const challenge = cancelSolPaymentLinkChallenge({
+      clusterDomain: clusterDomain(),
+      programId: this.solana.programId,
+      config: this.solana.configAddress,
+      vault,
+      paymentLink,
+      vaultNonce: vaultState.nonce,
+      proofExpiresAtUnix: expiresAtUnix,
+    });
+    return this.stage({
+      userId: params.userId,
+      vaultAddress: user.smartWallet.address,
+      challengeB64Url: bytesToBase64Url(challenge),
+      kind: 'sol_payment_link_cancel',
+      expiresAtUnix: expiresAtUnix.toString(),
+      payload: {
+        code: link.code,
+        paymentLink: paymentLink.toBase58(),
+        vaultNonce: vaultState.nonce.toString(),
+      },
+      summary: { code: link.code, token: 'SOL', amount: link.amount },
+    });
+  }
+
   async prepareSessionGrant(params: {
     userId: string;
     durationHours?: number;
@@ -322,7 +356,7 @@ export class SolanaPasskeyExecutionService {
       id: string;
       response: { authenticatorData: string; clientDataJSON: string; signature: string };
     };
-  }): Promise<{ txHash: string; success: true; kind: ActionKind }> {
+  }): Promise<{ txHash: string; success: true; kind: ActionKind; code?: string; shortUrl?: string }> {
     const prepared = await this.redis.takeJson<PreparedAction>(`passkey:prepare:${params.prepareId}`);
     if (!prepared) throw new BadRequestException('Approval expired or was already used');
     if (prepared.userId !== params.userId) {
@@ -399,6 +433,18 @@ export class SolanaPasskeyExecutionService {
         clientDataJson: proof.clientDataJson,
         programId: this.solana.programId,
       });
+    } else if (prepared.kind === 'sol_payment_link_cancel') {
+      instruction = createCancelSolPaymentLinkWithPasskeyInstruction({
+        payer: this.solana.feePayer.publicKey,
+        config: this.solana.configAddress,
+        vault: new PublicKey(prepared.vaultAddress),
+        paymentLink: new PublicKey(String(prepared.payload.paymentLink)),
+        vaultNonce: BigInt(String(prepared.payload.vaultNonce)),
+        proofExpiresAt: expiresAtUnix,
+        authenticatorData: proof.authenticatorData,
+        clientDataJson: proof.clientDataJson,
+        programId: this.solana.programId,
+      });
     } else {
       const sessionPublicKey = new PublicKey(String(prepared.payload.sessionPublicKey));
       const shared = {
@@ -431,16 +477,29 @@ export class SolanaPasskeyExecutionService {
             vaultNonce: BigInt(String(prepared.payload.vaultNonce)),
           });
     }
-    const confirmed = await this.solana.submitPasskeyInstruction({
-      proof,
-      instruction,
-      beforeVerification,
-    });
+    let confirmed;
+    try {
+      confirmed = await this.solana.submitPasskeyInstruction({
+        proof,
+        instruction,
+        beforeVerification,
+      });
+    } catch (error) {
+      if (prepared.kind === 'sol_payment_link') {
+        await this.relayer.failPendingSolPaymentLink(String(prepared.payload.code));
+      }
+      throw error;
+    }
     if (prepared.kind === 'sol_payment_link') {
       await this.relayer.activateSolPaymentLink({
         code: String(prepared.payload.code),
         paymentLinkAddress: String(prepared.payload.paymentLink),
         fundingTxHash: confirmed.signature,
+      });
+    } else if (prepared.kind === 'sol_payment_link_cancel') {
+      await this.relayer.markSolPaymentLinkCancelled({
+        code: String(prepared.payload.code),
+        transactionHash: confirmed.signature,
       });
     }
     await this.prisma.$transaction([
@@ -460,7 +519,17 @@ export class SolanaPasskeyExecutionService {
         : []),
     ]);
     this.logger.log(`Solana ${prepared.kind} confirmed: ${confirmed.signature}`);
-    return { txHash: confirmed.signature, success: true, kind: prepared.kind };
+    return {
+      txHash: confirmed.signature,
+      success: true,
+      kind: prepared.kind,
+      ...(prepared.kind === 'sol_payment_link'
+        ? {
+            code: String(prepared.payload.code),
+            shortUrl: `${process.env.PUBLIC_APP_URL?.replace(/\/$/, '')}/c/${String(prepared.payload.code)}`,
+          }
+        : {}),
+    };
   }
 
   private async stage(prepared: Omit<PreparedAction, never>) {

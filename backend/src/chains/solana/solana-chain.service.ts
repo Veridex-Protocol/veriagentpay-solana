@@ -21,6 +21,8 @@ import {
   createClaimPaymentLinkInstruction,
   createPaymentLinkWithSessionInstruction,
   createRefundExpiredPaymentLinkInstruction,
+  createClaimSolPaymentLinkInstruction,
+  createRefundExpiredSolPaymentLinkInstruction,
   createSecp256r1Instruction,
   createSessionTransferInstruction,
   decodePaymentLinkAccount,
@@ -277,6 +279,22 @@ export class SolanaChainService {
     return this.submit([instruction], []);
   }
 
+  async claimSolPaymentLink(params: {
+    paymentLinkAddress: string;
+    recipientVaultAddress: string;
+  }): Promise<ConfirmedSolanaTransaction> {
+    const paymentLink = this.publicKey(params.paymentLinkAddress, 'payment link');
+    const instruction = createClaimSolPaymentLinkInstruction({
+      claimAuthority: this.feePayer.publicKey,
+      config: this.configAddress,
+      claimAuthorityConfig: this.claimAuthorityConfigAddress,
+      recipientVault: this.publicKey(params.recipientVaultAddress, 'recipient vault'),
+      paymentLink,
+      programId: this.programId,
+    });
+    return this.submit([instruction], []);
+  }
+
   async cancelPaymentLinkWithSession(params: {
     vaultAddress: string;
     paymentLinkAddress: string;
@@ -314,6 +332,19 @@ export class SolanaChainService {
       stablecoinMint: this.stablecoinMint,
       escrowTokenAccount: derivePaymentLinkTokenAccount(paymentLink, this.stablecoinMint),
       vaultTokenAccount: this.vaultTokenAccount(params.senderVaultAddress),
+      programId: this.programId,
+    });
+    return this.submit([instruction], []);
+  }
+
+  async refundExpiredSolPaymentLink(params: {
+    senderVaultAddress: string;
+    paymentLinkAddress: string;
+  }): Promise<ConfirmedSolanaTransaction> {
+    const instruction = createRefundExpiredSolPaymentLinkInstruction({
+      config: this.configAddress,
+      senderVault: this.publicKey(params.senderVaultAddress, 'sender vault'),
+      paymentLink: this.publicKey(params.paymentLinkAddress, 'payment link'),
       programId: this.programId,
     });
     return this.submit([instruction], []);

@@ -89,6 +89,11 @@ export class RelayTransferController {
 
     const token = resolveToken(body.token);
     if (!token) throw new BadRequestException(`Unsupported token: ${body.token}`);
+    if (token.symbol === 'SOL') {
+      const error = new BadRequestException('Native SOL transfers require passkey authorization');
+      (error as any).code = 'BIOMETRICS_REQUIRED';
+      throw error;
+    }
 
     // Sender resolved from the token subject, not from a caller-supplied address.
     const senderUser = await this.prisma.user.findUnique({
@@ -248,8 +253,17 @@ export class RelayTransferController {
     if (!token) throw new BadRequestException(`Unsupported token: ${body.token}`);
 
     const recipientAddress = await this.resolveRecipientAddress(body.to);
-    if (!recipientAddress) {
+    if (!recipientAddress && token.symbol !== 'SOL') {
       throw new NotFoundException(`Recipient "${body.to}" not found or has no registered wallet.`);
+    }
+
+    if (!recipientAddress) {
+      return (this.passkeyExecution as any).prepareSolPaymentLink({
+        userId,
+        recipientHandle: body.to,
+        platform: 'telegram',
+        amount: body.amount,
+      });
     }
 
     return this.passkeyExecution.prepareTransfer({
@@ -280,22 +294,44 @@ export class RelayTransferController {
       throw new BadRequestException('prepareId and assertion are required');
     }
 
-    const result = await this.passkeyExecution.executeAction({
+    const result: {
+      txHash: string;
+      success: boolean;
+      kind: string;
+      code?: string;
+      shortUrl?: string;
+    } = await this.passkeyExecution.executeAction({
       userId,
       prepareId: body.prepareId,
       assertion: body.assertion,
     });
 
-    this.activityService
-      .record({
-        userIdentifier: userId,
-        action: 'TRANSFER_SENT',
-        txHash: result.txHash,
-        metadata: { method: 'executeWithPasskey' },
-      })
-      .catch(() => {});
+    if (result.kind !== 'sol_payment_link_cancel') {
+      this.activityService
+        .record({
+          userIdentifier: userId,
+          action: result.kind === 'sol_payment_link' ? 'ENVELOPE_CREATED' : 'TRANSFER_SENT',
+          txHash: result.txHash,
+          metadata: { method: 'executeWithPasskey', kind: result.kind, code: result.code },
+        })
+        .catch(() => {});
+    }
 
     return { ...result, method: 'passkey_onchain' };
+  }
+
+  @Post('passkey/prepare-link-cancel')
+  async preparePasskeyLinkCancel(
+    @Req() req: any,
+    @Body() body: { code: string },
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) throw new UnauthorizedException('Authentication required');
+    if (!body?.code) throw new BadRequestException('Payment-link code is required');
+    return (this.passkeyExecution as any).prepareCancelSolPaymentLink({
+      userId,
+      code: body.code,
+    });
   }
 
   /**

@@ -187,9 +187,8 @@ export class PlatformService {
 
     if (intent.unsupportedToken) {
       return `⚠️ Unsupported token '${intent.unsupportedToken}'.\n\n` +
-        `The Solana edition currently settles payments in *USDC only*.\n` +
-        `SOL is shown as a network balance but is not spendable by the vault program yet.\n\n` +
-        `Example: "send 50 USDC to @bob"`;
+        `Supported assets: *USDC* and *SOL*.\n\n` +
+        `Examples: "send 50 USDC to @bob" or "send 1 SOL to @bob"`;
     }
 
     try {
@@ -1162,12 +1161,12 @@ export class PlatformService {
 
   private async handlePayAction(payload: SocialMessagePayload, intent: ParsedIntent): Promise<string> {
     if (!intent.amount || !Number.isFinite(intent.amount) || intent.amount <= 0 || !intent.recipient) {
-      return `💸 *Send USDC on Solana*\n\nUsage: \`/pay 50 USDC @alice\`\nOr type naturally: "send 50 USDC to @alice"`;
+      return `💸 *Send on Solana*\n\nUsage: \`/pay 50 USDC @alice\` or \`/pay 1 SOL @alice\``;
     }
 
     const tokenSymbol = (intent.tokenSymbol || intent.tokenInfo?.symbol || 'USDC').toUpperCase();
-    if (tokenSymbol !== 'USDC') {
-      return `⚠️ The Solana edition currently settles payments in *USDC only*.`;
+    if (tokenSymbol !== 'USDC' && tokenSymbol !== 'SOL') {
+      return `⚠️ Supported Solana assets are *USDC* and *SOL*.`;
     }
 
     const sender = await this.resolveCurrentUser(payload);
@@ -1188,8 +1187,21 @@ export class PlatformService {
     }
 
     const activeSession = sender.sessionKeys?.[0];
-    if (!activeSession) {
+    if (!activeSession && tokenSymbol === 'USDC') {
       return `⚠️ *Session Key Required*\n\nAuthorize a bounded Solana session before sending from chat.\n\n👉 [Authorize Session Key](${keysLink})`;
+    }
+
+    if (tokenSymbol === 'SOL') {
+      const approval = this.paymentEscalation.buildPrompt({
+        to: intent.recipient.trim(),
+        token: 'SOL',
+        amount: intent.amount,
+        note: intent.memo,
+        reason: 'biometrics_required',
+      });
+      return `🔐 *Passkey Approval Required*\n\n` +
+        `Native SOL transfers always require your passkey. Open the app to approve ${intent.amount} SOL to ${intent.recipient}.\n\n` +
+        `👉 [Review SOL Payment](${approval.link})`;
     }
 
     const recipientInput = intent.recipient.trim();
@@ -1205,7 +1217,7 @@ export class PlatformService {
     }
 
     if (!recipientAddress) {
-      if (sender.requireBiometricsAlways || intent.amount > Number(activeSession.perTxLimitUSD)) {
+      if (sender.requireBiometricsAlways || intent.amount > Number(activeSession!.perTxLimitUSD)) {
         return `🔐 *Session Limit Approval Required*\n\n` +
           `Creating a ${intent.amount} USDC payment link exceeds your current chat-payment policy.\n\n` +
           `👉 [Review Session Limits](${keysLink})`;
@@ -1242,7 +1254,7 @@ export class PlatformService {
       }
     }
 
-    if (sender.requireBiometricsAlways || intent.amount > Number(activeSession.perTxLimitUSD)) {
+    if (sender.requireBiometricsAlways || intent.amount > Number(activeSession!.perTxLimitUSD)) {
       const paymentLink = this.generateSignedDeepLink('/send', {
         to: recipientAddress,
         amount: intent.amount,
@@ -1253,7 +1265,7 @@ export class PlatformService {
     }
 
     try {
-      const decryptedKey = await this.relayerService.decryptSessionKey(activeSession);
+      const decryptedKey = await this.relayerService.decryptSessionKey(activeSession!);
       const result = await (this.relayerService as unknown as SolanaRelayerService).executeSessionTransfer({
         userId: sender.id,
         vaultAddress: sender.smartWallet.address,

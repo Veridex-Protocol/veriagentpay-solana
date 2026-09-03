@@ -13,8 +13,8 @@
     "origin": "https://1pm4tfwd-3000.brs.devtunnels.ms"
   },
   "artifact": {
-    "sha256": "ada200a292808fa8a7509a48d328a3d28dae7491cdbc5f4a85840eb2eb097557",
-    "dataLength": 609408,
+    "sha256": "ee1abdd02c1fb6e4d752304b1c6ae33901fdd674e0d4e3ccbcca69de9f9c4a9e",
+    "dataLength": 683184,
     "platformTools": "v1.57",
     "cargoFeature": "tunnel-program"
   },
@@ -29,11 +29,13 @@
     "initializedAt": "2026-09-02T12:00:42Z"
   },
   "latestUpgrade": {
-    "signature": "63kDXECwt3PEzaS1Mmbkqbk9bC9vF3qoCZ5CoqwKDvsVCC6TL5LvnXwnokc7brst3vRMwufLnn37dGegxjbYxYJG",
-    "slot": 492526699,
-    "upgradedAt": "2026-09-03T13:47:08Z",
+    "signature": "qWpt2xhZRyHDmsZv4DM7DEy1KwS7NX3WtpTwFNTEonJuVYMqkC4kbkJ7r4VXVWJarCBeVCnL1T7qRFU6UWQCVt8",
+    "slot": 492649152,
+    "upgradedAt": "2026-09-03T20:08:00Z",
     "features": [
-      "native-usdc-payment-links"
+      "native-usdc-payment-links",
+      "native-sol-passkey-transfers",
+      "native-sol-payment-links"
     ]
   },
   "paymentLinks": {

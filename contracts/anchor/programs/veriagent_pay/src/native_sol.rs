@@ -122,3 +122,33 @@ pub(crate) fn transfer_program_lamports<'info>(
     **destination.try_borrow_mut_lamports()? = destination_balance;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sol_transfer_challenge_matches_client_fixture() {
+        let cluster = [1; 32];
+        let program = Pubkey::new_from_array([2; 32]);
+        let config = Pubkey::new_from_array([3; 32]);
+        let vault = Pubkey::new_from_array([4; 32]);
+        let recipient = Pubkey::new_from_array([5; 32]);
+        let action = [ACTION_TRANSFER_SOL];
+        let amount = 1_000_000_000u64.to_le_bytes();
+        let nonce = 7u64.to_le_bytes();
+        let expiry = 1_800_000_000i64.to_le_bytes();
+        let actual = challenge(&[
+            cluster.as_ref(),
+            program.as_ref(),
+            action.as_ref(),
+            config.as_ref(),
+            vault.as_ref(),
+            recipient.as_ref(),
+            amount.as_ref(),
+            nonce.as_ref(),
+            expiry.as_ref(),
+        ]);
+        assert_eq!(actual, [119, 2, 182, 28, 212, 134, 218, 107, 60, 52, 248, 115, 5, 193, 41, 165, 215, 43, 63, 239, 177, 66, 100, 77, 147, 194, 241, 167, 192, 6, 29, 110]);
+    }
+}

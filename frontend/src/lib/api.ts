@@ -446,12 +446,16 @@ export const api = {
   // to the exact action; execute submits the assertion over it. See
   // lib/passkey-actions.ts: callers should use those wrappers, not these.
   preparePasskeyTransfer: (data: { to: string; token: string; amount: number; note?: string }) =>
-    fetchApi<{ prepareId: string; challengeB64Url: string; vaultAddress: string; expiresAt: string }>(
+    fetchApi<{ prepareId: string; challengeB64Url: string; vaultAddress: string; expiresAt: string; code?: string; shortUrl?: string }>(
       '/api/relay/passkey/prepare', { method: 'POST', body: JSON.stringify(data) }),
 
   preparePasskeySession: (data: { durationHours?: number; durationDays?: number; perTxLimitUSD?: number; dailyLimitUSD?: number }) =>
     fetchApi<{ prepareId: string; challengeB64Url: string; vaultAddress: string; expiresAt: string; sessionKeyId: string }>(
       '/api/relay/passkey/prepare-session', { method: 'POST', body: JSON.stringify(data) }),
+
+  preparePasskeyLinkCancel: (code: string) =>
+    fetchApi<{ prepareId: string; challengeB64Url: string; vaultAddress: string; expiresAt: string }>(
+      '/api/relay/passkey/prepare-link-cancel', { method: 'POST', body: JSON.stringify({ code }) }),
 
   /**
    * Re-stamps the vault's contract allowlist with the protocol's current
@@ -463,7 +467,7 @@ export const api = {
       '/api/relay/passkey/prepare-policy-refresh', { method: 'POST' }),
 
   executePasskeyAction: (data: { prepareId: string; assertion: any }) =>
-    fetchApi<{ txHash: string; success: boolean; kind: string }>(
+    fetchApi<{ txHash: string; success: boolean; kind: string; code?: string; shortUrl?: string }>(
       '/api/relay/passkey/execute', { method: 'POST', body: JSON.stringify(data) }),
 
   getWebAuthnChallenge: () =>

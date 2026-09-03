@@ -23,7 +23,7 @@ function SendContent() {
 
   const [recipient, setRecipient] = useState(searchParams.get('to') || '');
   const [amount, setAmount] = useState(searchParams.get('amount') || '');
-  const [token, setToken] = useState<string>('USDC');
+  const [token, setToken] = useState<string>((searchParams.get('token') || 'USDC').toUpperCase());
   const [note, setNote] = useState('');
   // Arriving from a chat escalation: the bot already collected the payment and
   // signed the parameters, so skip straight to review rather than making the
@@ -34,12 +34,13 @@ function SendContent() {
   );
   const [naturalPrompt, setNaturalPrompt] = useState('');
   const [txHash, setTxHash] = useState('');
+  const [claimLink, setClaimLink] = useState('');
   const [transferMethod, setTransferMethod] = useState<'session_key' | 'passkey'>('session_key');
 
   const { data: balanceData } = useBalances();
   const transferMutation = useTransfer();
 
-  const availableTokens = ['USDC'];
+  const availableTokens = ['USDC', 'SOL'];
 
   const balances = balanceData?.balances || { USDC: '0.00', SOL: '0' };
   const activeTokenBalance = parseFloat(balances[token] || '0');
@@ -51,18 +52,18 @@ function SendContent() {
       const res = await api.parseIntent(naturalPrompt);
       if (res?.params) {
         if (res.params.amount) setAmount(String(res.params.amount));
-        if (res.params.token?.toUpperCase() === 'USDC') {
-          setToken('USDC');
+        if (['USDC', 'SOL'].includes(res.params.token?.toUpperCase())) {
+          setToken(res.params.token.toUpperCase());
         }
         if (res.params.recipient) setRecipient(res.params.recipient);
         if (res.params.note) setNote(res.params.note);
       }
     } catch {
-      const regex = /(?:send|pay|transfer)\s+\$?(\d+(?:\.\d+)?)\s*(USDC)?\s+(?:to\s+)?([1-9A-HJ-NP-Za-km-z]{32,44}|@?[\w\.]+|\+?\d[\d\s\-\(\)]{6,})/i;
+      const regex = /(?:send|pay|transfer)\s+\$?(\d+(?:\.\d+)?)\s*(USDC|SOL)?\s+(?:to\s+)?([1-9A-HJ-NP-Za-km-z]{32,44}|@?[\w\.]+|\+?\d[\d\s\-\(\)]{6,})/i;
       const matches = naturalPrompt.match(regex);
       if (matches) {
         if (matches[1]) setAmount(matches[1]);
-        setToken('USDC');
+        setToken(matches[2]?.toUpperCase() || 'USDC');
         if (matches[3]) setRecipient(matches[3].trim());
       } else {
         const simpleMatch = naturalPrompt.match(/(\d+(?:\.\d+)?)\s*([A-Za-z0-9]+)?/i);
@@ -163,8 +164,12 @@ function SendContent() {
       }
 
       setTxHash(res.txHash);
+      setClaimLink(res.shortUrl || '');
       setTransferMethod('passkey');
       setStep('success');
+      if (res.shortUrl) {
+        await navigator.clipboard?.writeText(res.shortUrl).catch(() => undefined);
+      }
       queryClient.invalidateQueries({ queryKey: ['sentPayments'] });
       queryClient.invalidateQueries({ queryKey: ['activity'] });
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
@@ -181,6 +186,11 @@ function SendContent() {
 
   const handleExecuteTransfer = async () => {
     setError('');
+
+    if (token === 'SOL') {
+      await handlePasskeyTransfer();
+      return;
+    }
 
     try {
       const res = await transferMutation.mutateAsync({
@@ -527,12 +537,26 @@ function SendContent() {
 
             <div className="space-y-1">
               <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-950'}`}>
-                {transferMethod === 'session_key' ? '⚡ Instant Transfer Complete!' : 'Payment Sent!'}
+                {claimLink ? 'SOL Payment Link Funded!' : transferMethod === 'session_key' ? '⚡ Instant Transfer Complete!' : 'Payment Sent!'}
               </h2>
               <p className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {amount} {token} transferred to {recipient} {transferMethod === 'session_key' ? 'via session key' : 'via passkey'}
+                {claimLink
+                  ? `${amount} ${token} is escrowed on Solana for ${recipient}`
+                  : `${amount} ${token} transferred to ${recipient} ${transferMethod === 'session_key' ? 'via session key' : 'via passkey'}`}
               </p>
             </div>
+
+            {claimLink && (
+              <a
+                href={claimLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="va-product-action va-product-action--primary flex w-full items-center justify-center gap-2 py-3"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open Claim Link
+              </a>
+            )}
 
             <div className={`p-3 rounded-xl border font-mono text-xs space-y-2 ${isDark ? 'bg-slate-950 border-white/[0.08]' : 'bg-slate-100 border-slate-300'
               }`}>
@@ -557,7 +581,7 @@ function SendContent() {
             </div>
 
             <button
-              onClick={() => { setStep('form'); setRecipient(''); setAmount(''); setNote(''); }}
+              onClick={() => { setStep('form'); setRecipient(''); setAmount(''); setNote(''); setClaimLink(''); }}
               className="w-full py-3.5 rounded-xl font-bold text-xs bg-[#F2D827] hover:bg-[#E5A900] text-slate-950 transition font-mono"
             >
               Send Another Payment

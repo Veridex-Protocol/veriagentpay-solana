@@ -761,3 +761,39 @@ fn transfer_checked<'info>(
         mint.decimals,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sol_payment_link_challenge_matches_client_fixture() {
+        let cluster = [1; 32];
+        let program = Pubkey::new_from_array([2; 32]);
+        let config = Pubkey::new_from_array([3; 32]);
+        let vault = Pubkey::new_from_array([4; 32]);
+        let payment_link = Pubkey::new_from_array([5; 32]);
+        let link_id = [6; 32];
+        let commitment = [7; 32];
+        let action = [ACTION_CREATE_SOL_PAYMENT_LINK];
+        let amount = 1_000_000_000u64.to_le_bytes();
+        let link_expiry = 1_800_000_000i64.to_le_bytes();
+        let nonce = 8u64.to_le_bytes();
+        let proof_expiry = 1_700_000_000i64.to_le_bytes();
+        let actual = challenge(&[
+            cluster.as_ref(),
+            program.as_ref(),
+            action.as_ref(),
+            config.as_ref(),
+            vault.as_ref(),
+            payment_link.as_ref(),
+            link_id.as_ref(),
+            commitment.as_ref(),
+            amount.as_ref(),
+            link_expiry.as_ref(),
+            nonce.as_ref(),
+            proof_expiry.as_ref(),
+        ]);
+        assert_eq!(actual, [104, 189, 229, 78, 10, 103, 50, 163, 24, 151, 28, 199, 224, 64, 128, 1, 188, 153, 15, 67, 109, 122, 208, 111, 193, 64, 153, 215, 173, 20, 106, 160]);
+    }
+}

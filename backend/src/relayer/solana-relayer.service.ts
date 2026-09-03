@@ -5,7 +5,7 @@ import {
   Logger,
   Optional,
 } from '@nestjs/common';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, SystemProgram } from '@solana/web3.js';
 import * as crypto from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -283,6 +283,15 @@ export class SolanaRelayerService {
   }
 
   async claimPaymentLink(paymentLinkAddress: string, recipientVaultAddress: string) {
+    const state = await this.solana.readPaymentLink(paymentLinkAddress);
+    if (!state) throw new BadRequestException('Payment link does not exist on Solana');
+    if (state.mint.equals(SystemProgram.programId)) {
+      const confirmed = await this.solana.claimSolPaymentLink({
+        paymentLinkAddress,
+        recipientVaultAddress,
+      });
+      return { success: true as const, txHash: confirmed.signature };
+    }
     const confirmed = await this.solana.claimPaymentLink({
       paymentLinkAddress,
       recipientVaultAddress,
@@ -315,6 +324,15 @@ export class SolanaRelayerService {
   }
 
   async refundExpiredPaymentLink(senderVaultAddress: string, paymentLinkAddress: string) {
+    const state = await this.solana.readPaymentLink(paymentLinkAddress);
+    if (!state) throw new BadRequestException('Payment link does not exist on Solana');
+    if (state.mint.equals(SystemProgram.programId)) {
+      const confirmed = await this.solana.refundExpiredSolPaymentLink({
+        senderVaultAddress,
+        paymentLinkAddress,
+      });
+      return { success: true as const, txHash: confirmed.signature };
+    }
     const confirmed = await this.solana.refundExpiredPaymentLink({
       senderVaultAddress,
       paymentLinkAddress,
@@ -371,6 +389,31 @@ export class SolanaRelayerService {
         fundingTxHash: params.fundingTxHash,
         status: 'ACTIVE',
       },
+    });
+  }
+
+  async findOwnedSolPaymentLink(code: string, userId: string) {
+    const link = await this.prisma.shortLink.findUnique({ where: { code } });
+    if (!link || link.senderUserId !== userId) {
+      throw new ForbiddenException('Only the sender can cancel this payment');
+    }
+    if (link.token !== 'SOL' || link.status !== 'ACTIVE' || !link.envelopeId) {
+      throw new BadRequestException('This SOL payment link is not cancellable');
+    }
+    return link;
+  }
+
+  async markSolPaymentLinkCancelled(params: { code: string; transactionHash: string }) {
+    return this.prisma.shortLink.update({
+      where: { code: params.code },
+      data: { status: 'CANCELLED', claimTxHash: params.transactionHash },
+    });
+  }
+
+  async failPendingSolPaymentLink(code: string) {
+    await this.prisma.shortLink.updateMany({
+      where: { code, status: 'PENDING', fundingTxHash: null },
+      data: { status: 'FAILED' },
     });
   }
 

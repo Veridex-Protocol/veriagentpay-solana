@@ -171,7 +171,10 @@ export class SolanaPaymentLinksService {
     if (!crypto.timingSafeEqual(Buffer.from(state.recipientCommitment), expectedCommitment)) {
       throw new ForbiddenException('Payment-link recipient binding does not match');
     }
-    if (state.amount !== usdcToAtomic(link.amount || 0)) {
+    const expectedAmount = link.token === 'SOL'
+      ? solToLamports(link.amount || 0)
+      : usdcToAtomic(link.amount || 0);
+    if (state.amount !== expectedAmount) {
       throw new BadRequestException('Payment-link amount does not match its on-chain escrow');
     }
 
@@ -184,7 +187,7 @@ export class SolanaPaymentLinksService {
       userIdentifier: claimer.id,
       action: UserActivityAction.ENVELOPE_CLAIMED,
       amount: link.amount || 0,
-      token: 'USDC',
+      token: link.token || 'USDC',
       txHash: result.txHash,
       metadata: {
         code,
@@ -199,7 +202,7 @@ export class SolanaPaymentLinksService {
       success: true,
       txHash: result.txHash,
       amount: link.amount,
-      token: 'USDC',
+      token: link.token || 'USDC',
       needsPlatformLink,
       botLink: needsPlatformLink ? getTelegramDeepLink(`claimed_${code}`) : null,
     };
@@ -232,6 +235,9 @@ export class SolanaPaymentLinksService {
       throw new BadRequestException(`This payment is no longer active (status: ${link.status})`);
     }
     if (!link.envelopeId) throw new BadRequestException('Claim link has no Solana escrow account');
+    if (link.token === 'SOL') {
+      throw new BadRequestException('Native SOL payment links require passkey authorization to cancel');
+    }
 
     const sender = await this.prisma.user.findUnique({
       where: { id: senderUserId },
@@ -372,4 +378,9 @@ function normalizeHandle(value: string): string {
 function usdcToAtomic(amount: number): bigint {
   if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Invalid USDC amount');
   return BigInt(amount.toFixed(6).replace('.', ''));
+}
+
+function solToLamports(amount: number): bigint {
+  if (!Number.isFinite(amount) || amount <= 0) throw new BadRequestException('Invalid SOL amount');
+  return BigInt(amount.toFixed(9).replace('.', ''));
 }

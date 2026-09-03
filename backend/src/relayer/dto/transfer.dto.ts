@@ -33,7 +33,7 @@ export class TransferDto {
    * `ethers.parseUnits`, where it throws deep in the library and surfaces as an
    * unhandled 500 rather than a 400.
    */
-  @IsNumber({ maxDecimalPlaces: 6 })
+  @IsNumber({ maxDecimalPlaces: 9 })
   @IsPositive()
   @Max(1_000_000)
   amount!: number;

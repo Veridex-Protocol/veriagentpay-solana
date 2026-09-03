@@ -86,14 +86,19 @@ export async function transferWithPasskey(params: {
   token: string;
   amount: number;
   note?: string;
-}): Promise<{ txHash: string; success: boolean }> {
+}): Promise<{ txHash: string; success: boolean; kind?: string; code?: string; shortUrl?: string }> {
   const prepared = await api.preparePasskeyTransfer(params);
   const assertion = await signChallenge(prepared.challengeB64Url);
 
-  return api.executePasskeyAction({
+  const result = await api.executePasskeyAction({
     prepareId: prepared.prepareId,
     assertion,
   });
+  return {
+    ...result,
+    code: result.code || prepared.code,
+    shortUrl: result.shortUrl || prepared.shortUrl,
+  };
 }
 
 /**
@@ -119,6 +124,12 @@ export async function grantSessionKeyWithPasskey(params?: {
   });
 
   return { ...result, sessionKeyId: prepared.sessionKeyId };
+}
+
+export async function cancelSolPaymentLinkWithPasskey(code: string) {
+  const prepared = await api.preparePasskeyLinkCancel(code);
+  const assertion = await signChallenge(prepared.challengeB64Url);
+  return api.executePasskeyAction({ prepareId: prepared.prepareId, assertion });
 }
 
 /**
