@@ -1205,8 +1205,41 @@ export class PlatformService {
     }
 
     if (!recipientAddress) {
-      return `⚠️ Recipient ${recipientInput} does not have a linked Solana passkey vault yet.\n\n` +
-        `Native Solana payment links are not available in this build.`;
+      if (sender.requireBiometricsAlways || intent.amount > Number(activeSession.perTxLimitUSD)) {
+        return `🔐 *Session Limit Approval Required*\n\n` +
+          `Creating a ${intent.amount} USDC payment link exceeds your current chat-payment policy.\n\n` +
+          `👉 [Review Session Limits](${keysLink})`;
+      }
+
+      try {
+        const result = await this.escrowService.createClaimLink({
+          senderUserId: sender.id,
+          senderVaultAddress: sender.smartWallet.address,
+          platform: payload.platform,
+          recipientHandle: recipientInput,
+          amount: intent.amount,
+          token: 'USDC',
+          fromUser: payload.username,
+        });
+        const shareText = `I sent you ${intent.amount} USDC on Solana. Claim it with a passkey:`;
+        const shareLink = `https://t.me/share/url?url=${encodeURIComponent(result.shortUrl)}&text=${encodeURIComponent(shareText)}`;
+        return `💸 *Native Solana Payment Link Created!*\n\n` +
+          `👤 *To:* ${recipientInput}\n` +
+          `💰 *Amount:* ${intent.amount} USDC\n` +
+          `⚡ *Status:* Escrowed on Solana Devnet\n` +
+          `🔗 *Transaction:* \`${result.txHash}\`\n\n` +
+          `👉 [Claim Payment](${result.shortUrl})\n` +
+          `📤 [Send Link to ${recipientInput}](${shareLink})`;
+      } catch (error: any) {
+        const reference = errorReference();
+        this.logger.error(
+          `[${reference}] Native Solana payment-link creation failed for ${recipientInput}: ${describeForLog(error)}`,
+          error?.stack,
+        );
+        return `⚠️ *Payment Link Failed*\n\n` +
+          `${toUserMessage(error, 'The USDC could not be escrowed on Solana. No funds were moved.')}\n\n` +
+          `Reference: \`${reference}\``;
+      }
     }
 
     if (sender.requireBiometricsAlways || intent.amount > Number(activeSession.perTxLimitUSD)) {

@@ -3,11 +3,13 @@ use anchor_lang::prelude::*;
 pub mod auth;
 pub mod constants;
 pub mod errors;
+pub mod payment_links;
 pub mod protocol;
 pub mod state;
 pub mod wallet;
 
 use protocol::*;
+use payment_links::*;
 use wallet::*;
 
 #[cfg(not(feature = "tunnel-program"))]
@@ -56,5 +58,34 @@ pub mod veriagent_pay {
         args: SessionTransferArgs,
     ) -> Result<()> {
         wallet::transfer_with_session(ctx, args)
+    }
+
+    pub fn initialize_claim_authority(
+        ctx: Context<InitializeClaimAuthority>,
+        args: InitializeClaimAuthorityArgs,
+    ) -> Result<()> {
+        payment_links::initialize_claim_authority(ctx, args)
+    }
+
+    pub fn create_payment_link_with_session(
+        ctx: Context<CreatePaymentLinkWithSession>,
+        args: CreatePaymentLinkWithSessionArgs,
+    ) -> Result<()> {
+        payment_links::create_payment_link_with_session(ctx, args)
+    }
+
+    pub fn claim_payment_link(ctx: Context<ClaimPaymentLink>) -> Result<()> {
+        payment_links::claim_payment_link(ctx)
+    }
+
+    pub fn cancel_payment_link_with_session(
+        ctx: Context<CancelPaymentLinkWithSession>,
+        args: CancelPaymentLinkWithSessionArgs,
+    ) -> Result<()> {
+        payment_links::cancel_payment_link_with_session(ctx, args)
+    }
+
+    pub fn refund_expired_payment_link(ctx: Context<RefundExpiredPaymentLink>) -> Result<()> {
+        payment_links::refund_expired_payment_link(ctx)
     }
 }

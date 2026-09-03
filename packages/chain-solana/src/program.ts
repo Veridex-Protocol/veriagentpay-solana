@@ -13,7 +13,9 @@ import { Buffer } from "buffer";
 
 import { concatBytes, encodeVector, i64Le, u64Le, utf8 } from "./bytes.js";
 import {
+  CLAIM_AUTHORITY_SEED,
   INSTRUCTIONS_SYSVAR_ID,
+  PAYMENT_LINK_SEED,
   PROTOCOL_SEED,
   SESSION_SEED,
   VAULT_SEED,
@@ -24,6 +26,8 @@ const VAULT_NONCE_OFFSET = 8 + 1 + 1 + 33 + 32 + 32;
 const VAULT_ACCOUNT_SIZE = VAULT_NONCE_OFFSET + 8 + 8;
 const SESSION_NONCE_OFFSET = 8 + 1 + 1 + 1 + 32 + 32 + 2 + 8 + 8 + 8 + 8 + 8;
 const SESSION_ACCOUNT_SIZE = SESSION_NONCE_OFFSET + 8;
+const PAYMENT_LINK_AMOUNT_OFFSET = 8 + 1 + 1 + 1 + 32 + 32 + 32 + 32;
+const PAYMENT_LINK_ACCOUNT_SIZE = PAYMENT_LINK_AMOUNT_OFFSET + 8 + 8 + 8 + 8 + 32;
 
 export interface DecodedVault {
   version: number;
@@ -105,6 +109,67 @@ export interface SessionTransferInstructionInput {
   programId?: PublicKey;
 }
 
+export interface InitializeClaimAuthorityInstructionInput {
+  protocolAuthority: PublicKey;
+  config: PublicKey;
+  claimAuthorityConfig: PublicKey;
+  authority: PublicKey;
+  programId?: PublicKey;
+}
+
+export interface CreatePaymentLinkWithSessionInstructionInput {
+  payer: PublicKey;
+  config: PublicKey;
+  vault: PublicKey;
+  session: PublicKey;
+  sessionSigner: PublicKey;
+  stablecoinMint: PublicKey;
+  vaultTokenAccount: PublicKey;
+  paymentLink: PublicKey;
+  escrowTokenAccount: PublicKey;
+  linkId: Uint8Array;
+  recipientCommitment: Uint8Array;
+  amount: bigint;
+  expiresAtUnix: bigint;
+  sessionNonce: bigint;
+  programId?: PublicKey;
+}
+
+export interface ClaimPaymentLinkInstructionInput {
+  claimAuthority: PublicKey;
+  config: PublicKey;
+  claimAuthorityConfig: PublicKey;
+  recipientVault: PublicKey;
+  paymentLink: PublicKey;
+  stablecoinMint: PublicKey;
+  escrowTokenAccount: PublicKey;
+  destinationTokenAccount: PublicKey;
+  programId?: PublicKey;
+}
+
+export interface CancelPaymentLinkWithSessionInstructionInput {
+  config: PublicKey;
+  vault: PublicKey;
+  session: PublicKey;
+  sessionSigner: PublicKey;
+  paymentLink: PublicKey;
+  stablecoinMint: PublicKey;
+  escrowTokenAccount: PublicKey;
+  vaultTokenAccount: PublicKey;
+  sessionNonce: bigint;
+  programId?: PublicKey;
+}
+
+export interface RefundExpiredPaymentLinkInstructionInput {
+  config: PublicKey;
+  senderVault: PublicKey;
+  paymentLink: PublicKey;
+  stablecoinMint: PublicKey;
+  escrowTokenAccount: PublicKey;
+  vaultTokenAccount: PublicKey;
+  programId?: PublicKey;
+}
+
 export interface DecodedSession {
   version: number;
   bump: number;
@@ -118,6 +183,21 @@ export interface DecodedSession {
   validAfter: bigint;
   validUntil: bigint;
   nonce: bigint;
+}
+
+export interface DecodedPaymentLink {
+  version: number;
+  bump: number;
+  status: number;
+  senderVault: PublicKey;
+  mint: PublicKey;
+  linkId: Uint8Array;
+  recipientCommitment: Uint8Array;
+  amount: bigint;
+  expiresAt: bigint;
+  createdAt: bigint;
+  settledAt: bigint;
+  claimedDestination: PublicKey;
 }
 
 export function deriveProtocolConfig(
@@ -155,6 +235,28 @@ export function deriveSession(
   )[0];
 }
 
+export function deriveClaimAuthorityConfig(
+  programId: PublicKey = VERIAGENT_PROGRAM_ID,
+): PublicKey {
+  return PublicKey.findProgramAddressSync([CLAIM_AUTHORITY_SEED], programId)[0];
+}
+
+export function derivePaymentLink(
+  senderVault: PublicKey,
+  linkId: Uint8Array,
+  programId: PublicKey = VERIAGENT_PROGRAM_ID,
+): PublicKey {
+  if (linkId.length !== 32) throw new Error("Payment-link ID must contain 32 bytes");
+  return PublicKey.findProgramAddressSync(
+    [PAYMENT_LINK_SEED, senderVault.toBytes(), linkId],
+    programId,
+  )[0];
+}
+
+export function derivePaymentLinkTokenAccount(paymentLink: PublicKey, mint: PublicKey): PublicKey {
+  return getAssociatedTokenAddressSync(mint, paymentLink, true, TOKEN_PROGRAM_ID);
+}
+
 export function decodeVaultAccount(data: Uint8Array): DecodedVault {
   if (data.length < VAULT_ACCOUNT_SIZE) {
     throw new Error("Vault account data is truncated");
@@ -189,6 +291,27 @@ export function decodeSessionAccount(data: Uint8Array): DecodedSession {
     validAfter: view.getBigInt64(101, true),
     validUntil: view.getBigInt64(109, true),
     nonce: view.getBigUint64(SESSION_NONCE_OFFSET, true),
+  };
+}
+
+export function decodePaymentLinkAccount(data: Uint8Array): DecodedPaymentLink {
+  if (data.length < PAYMENT_LINK_ACCOUNT_SIZE) {
+    throw new Error("Payment-link account data is truncated");
+  }
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  return {
+    version: data[8] ?? 0,
+    bump: data[9] ?? 0,
+    status: data[10] ?? 0,
+    senderVault: new PublicKey(data.slice(11, 43)),
+    mint: new PublicKey(data.slice(43, 75)),
+    linkId: data.slice(75, 107),
+    recipientCommitment: data.slice(107, 139),
+    amount: view.getBigUint64(PAYMENT_LINK_AMOUNT_OFFSET, true),
+    expiresAt: view.getBigInt64(PAYMENT_LINK_AMOUNT_OFFSET + 8, true),
+    createdAt: view.getBigInt64(PAYMENT_LINK_AMOUNT_OFFSET + 16, true),
+    settledAt: view.getBigInt64(PAYMENT_LINK_AMOUNT_OFFSET + 24, true),
+    claimedDestination: new PublicKey(data.slice(PAYMENT_LINK_AMOUNT_OFFSET + 32, PAYMENT_LINK_AMOUNT_OFFSET + 64)),
   };
 }
 
@@ -357,6 +480,127 @@ export function createSessionTransferInstruction(
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: Buffer.from(data),
+  });
+}
+
+export function createInitializeClaimAuthorityInstruction(
+  input: InitializeClaimAuthorityInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  const data = concatBytes(
+    sha256(utf8("global:initialize_claim_authority")).slice(0, 8),
+    input.authority.toBytes(),
+  );
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.protocolAuthority, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.claimAuthorityConfig, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(data),
+  });
+}
+
+export function createPaymentLinkWithSessionInstruction(
+  input: CreatePaymentLinkWithSessionInstructionInput,
+): TransactionInstruction {
+  if (input.linkId.length !== 32 || input.recipientCommitment.length !== 32) {
+    throw new Error("Payment-link ID and recipient commitment must each contain 32 bytes");
+  }
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  const data = concatBytes(
+    sha256(utf8("global:create_payment_link_with_session")).slice(0, 8),
+    input.linkId,
+    input.recipientCommitment,
+    u64Le(input.amount),
+    i64Le(input.expiresAtUnix),
+    u64Le(input.sessionNonce),
+  );
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.payer, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.vault, isSigner: false, isWritable: false },
+      { pubkey: input.session, isSigner: false, isWritable: true },
+      { pubkey: input.sessionSigner, isSigner: true, isWritable: false },
+      { pubkey: input.stablecoinMint, isSigner: false, isWritable: false },
+      { pubkey: input.vaultTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+      { pubkey: input.escrowTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(data),
+  });
+}
+
+export function createClaimPaymentLinkInstruction(
+  input: ClaimPaymentLinkInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.claimAuthority, isSigner: true, isWritable: true },
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.claimAuthorityConfig, isSigner: false, isWritable: false },
+      { pubkey: input.recipientVault, isSigner: false, isWritable: false },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+      { pubkey: input.stablecoinMint, isSigner: false, isWritable: false },
+      { pubkey: input.escrowTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: input.destinationTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(sha256(utf8("global:claim_payment_link")).slice(0, 8)),
+  });
+}
+
+export function createCancelPaymentLinkWithSessionInstruction(
+  input: CancelPaymentLinkWithSessionInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.vault, isSigner: false, isWritable: false },
+      { pubkey: input.session, isSigner: false, isWritable: true },
+      { pubkey: input.sessionSigner, isSigner: true, isWritable: false },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+      { pubkey: input.stablecoinMint, isSigner: false, isWritable: false },
+      { pubkey: input.escrowTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: input.vaultTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(concatBytes(
+      sha256(utf8("global:cancel_payment_link_with_session")).slice(0, 8),
+      u64Le(input.sessionNonce),
+    )),
+  });
+}
+
+export function createRefundExpiredPaymentLinkInstruction(
+  input: RefundExpiredPaymentLinkInstructionInput,
+): TransactionInstruction {
+  const programId = input.programId ?? VERIAGENT_PROGRAM_ID;
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: input.config, isSigner: false, isWritable: false },
+      { pubkey: input.senderVault, isSigner: false, isWritable: false },
+      { pubkey: input.paymentLink, isSigner: false, isWritable: true },
+      { pubkey: input.stablecoinMint, isSigner: false, isWritable: false },
+      { pubkey: input.escrowTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: input.vaultTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from(sha256(utf8("global:refund_expired_payment_link")).slice(0, 8)),
   });
 }
 

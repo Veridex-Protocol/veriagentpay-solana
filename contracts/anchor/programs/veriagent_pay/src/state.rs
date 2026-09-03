@@ -41,3 +41,28 @@ pub struct Session {
     pub valid_until: i64,
     pub nonce: u64,
 }
+
+#[account]
+#[derive(InitSpace)]
+pub struct ClaimAuthorityConfig {
+    pub version: u8,
+    pub bump: u8,
+    pub authority: Pubkey,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct PaymentLink {
+    pub version: u8,
+    pub bump: u8,
+    pub status: u8,
+    pub sender_vault: Pubkey,
+    pub mint: Pubkey,
+    pub link_id: [u8; 32],
+    pub recipient_commitment: [u8; 32],
+    pub amount: u64,
+    pub expires_at: i64,
+    pub created_at: i64,
+    pub settled_at: i64,
+    pub claimed_destination: Pubkey,
+}

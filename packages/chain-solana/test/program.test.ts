@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { decodeVaultAccount } from "../src";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+
+import {
+  createPaymentLinkWithSessionInstruction,
+  decodePaymentLinkAccount,
+  decodeVaultAccount,
+  derivePaymentLink,
+  derivePaymentLinkTokenAccount,
+} from "../src";
 
 describe("vault account decoding", () => {
   test("reads the root key and nonce without losing u64 precision", () => {
@@ -19,5 +28,64 @@ describe("vault account decoding", () => {
     expect(vault.bump).toBe(254);
     expect(vault.rootPublicKey).toEqual(new Uint8Array(33).fill(2));
     expect(vault.nonce).toBe(9_007_199_254_740_999n);
+  });
+});
+
+describe("payment-link program helpers", () => {
+  test("derives the link PDA and escrow token account deterministically", () => {
+    const vault = new PublicKey(new Uint8Array(32).fill(7));
+    const mint = new PublicKey(new Uint8Array(32).fill(8));
+    const linkId = new Uint8Array(32).fill(9);
+    const first = derivePaymentLink(vault, linkId);
+
+    expect(derivePaymentLink(vault, linkId)).toEqual(first);
+    expect(derivePaymentLinkTokenAccount(first, mint)).not.toEqual(first);
+  });
+
+  test("encodes session-funded creation with Anchor account ordering", () => {
+    const keys = Array.from({ length: 9 }, (_, index) => new PublicKey(new Uint8Array(32).fill(index + 1)));
+    const instruction = createPaymentLinkWithSessionInstruction({
+      payer: keys[0]!,
+      config: keys[1]!,
+      vault: keys[2]!,
+      session: keys[3]!,
+      sessionSigner: keys[4]!,
+      stablecoinMint: keys[5]!,
+      vaultTokenAccount: keys[6]!,
+      paymentLink: keys[7]!,
+      escrowTokenAccount: keys[8]!,
+      linkId: new Uint8Array(32).fill(10),
+      recipientCommitment: new Uint8Array(32).fill(11),
+      amount: 5_000_000n,
+      expiresAtUnix: 1_800_000_000n,
+      sessionNonce: 4n,
+    });
+
+    expect(instruction.keys).toHaveLength(12);
+    expect(instruction.keys[0]).toMatchObject({ pubkey: keys[0], isSigner: true, isWritable: true });
+    expect(instruction.keys[4]).toMatchObject({ pubkey: keys[4], isSigner: true, isWritable: false });
+    expect(instruction.keys[9]?.pubkey).toEqual(TOKEN_PROGRAM_ID);
+    expect(instruction.keys[11]?.pubkey).toEqual(SystemProgram.programId);
+    expect(instruction.data).toHaveLength(96);
+  });
+
+  test("decodes payment-link state without losing atomic amounts", () => {
+    const data = new Uint8Array(203);
+    data[8] = 1;
+    data[9] = 200;
+    data[10] = 1;
+    data.set(new Uint8Array(32).fill(2), 11);
+    data.set(new Uint8Array(32).fill(3), 43);
+    data.set(new Uint8Array(32).fill(4), 75);
+    data.set(new Uint8Array(32).fill(5), 107);
+    const view = new DataView(data.buffer);
+    view.setBigUint64(139, 9_007_199_254_740_999n, true);
+    view.setBigInt64(147, 1_800_000_000n, true);
+    data.set(new Uint8Array(32).fill(6), 171);
+
+    const link = decodePaymentLinkAccount(data);
+    expect(link.status).toBe(1);
+    expect(link.amount).toBe(9_007_199_254_740_999n);
+    expect(link.claimedDestination).toEqual(new PublicKey(new Uint8Array(32).fill(6)));
   });
 });

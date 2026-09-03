@@ -5,6 +5,7 @@ import { IdentityModule } from '../identity/identity.module';
 import { ShortLinksModule } from '../shortlinks/shortlinks.module';
 import { RelayerModule } from '../relayer/relayer.module';
 import { ActivityModule } from '../activity/activity.module';
+import { SolanaPaymentLinksService } from './solana-payment-links.service';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { ActivityModule } from '../activity/activity.module';
     forwardRef(() => ActivityModule),
   ],
   controllers: [EscrowController],
-  providers: [EscrowService],
+  providers: [SolanaPaymentLinksService, EscrowService],
   exports: [EscrowService],
 })
 export class EscrowModule {}

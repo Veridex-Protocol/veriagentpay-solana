@@ -11,11 +11,17 @@ export const CHALLENGE_DOMAIN = new TextEncoder().encode("VERIAGENT_SOLANA_V1");
 export const PROTOCOL_SEED = new TextEncoder().encode("protocol");
 export const VAULT_SEED = new TextEncoder().encode("vault");
 export const SESSION_SEED = new TextEncoder().encode("session");
+export const CLAIM_AUTHORITY_SEED = new TextEncoder().encode("claim_authority");
+export const PAYMENT_LINK_SEED = new TextEncoder().encode("payment_link");
 export const ACTION_INITIALIZE_VAULT = 1;
 export const ACTION_GRANT_SESSION = 2;
 export const ACTION_TRANSFER = 3;
 export const ACTION_INITIALIZE_VAULT_AND_GRANT_SESSION = 4;
 export const SESSION_ACTION_TRANSFER = 1;
+export const PAYMENT_LINK_STATUS_ACTIVE = 0;
+export const PAYMENT_LINK_STATUS_CLAIMED = 1;
+export const PAYMENT_LINK_STATUS_CANCELLED = 2;
+export const PAYMENT_LINK_STATUS_REFUNDED = 3;
 
 export const SOLANA_DEVNET_USDC_MINT = new PublicKey(
   "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",

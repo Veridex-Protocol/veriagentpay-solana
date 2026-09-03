@@ -60,4 +60,18 @@ pub enum VeriAgentError {
     InvalidTransferAmount,
     #[msg("The source and destination token accounts must differ")]
     IdenticalTokenAccounts,
+    #[msg("The payment-link expiry is invalid")]
+    InvalidPaymentLinkExpiry,
+    #[msg("The payment-link recipient commitment is invalid")]
+    InvalidRecipientCommitment,
+    #[msg("The payment link is no longer active")]
+    PaymentLinkNotActive,
+    #[msg("The payment link has expired")]
+    PaymentLinkExpired,
+    #[msg("The payment link has not expired")]
+    PaymentLinkNotExpired,
+    #[msg("The payment link does not belong to this vault")]
+    InvalidPaymentLinkSender,
+    #[msg("The payment-link claim authority is invalid")]
+    InvalidClaimAuthority,
 }

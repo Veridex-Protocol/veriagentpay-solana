@@ -17,10 +17,18 @@ import {
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
+  createCancelPaymentLinkWithSessionInstruction,
+  createClaimPaymentLinkInstruction,
+  createPaymentLinkWithSessionInstruction,
+  createRefundExpiredPaymentLinkInstruction,
   createSecp256r1Instruction,
   createSessionTransferInstruction,
+  decodePaymentLinkAccount,
   decodeSessionAccount,
   decodeVaultAccount,
+  deriveClaimAuthorityConfig,
+  derivePaymentLink,
+  derivePaymentLinkTokenAccount,
   deriveProtocolConfig,
   deriveSession,
   feePayerFromSecret,
@@ -51,6 +59,7 @@ export class SolanaChainService {
   readonly programId = SOLANA_PROGRAM_ID;
   readonly stablecoinMint = SOLANA_USDC_MINT;
   readonly configAddress = deriveProtocolConfig(this.programId);
+  readonly claimAuthorityConfigAddress = deriveClaimAuthorityConfig(this.programId);
   readonly commitment: Commitment;
   private feePayerKeypair?: Keypair;
 
@@ -109,6 +118,16 @@ export class SolanaChainService {
       throw new BadRequestException('Session address is not owned by the VeriAgent Solana program');
     }
     return { address, state: decodeSessionAccount(account.data) };
+  }
+
+  async readPaymentLink(address: string) {
+    const publicKey = this.publicKey(address, 'payment link');
+    const account = await this.connection.getAccountInfo(publicKey, this.commitment);
+    if (!account) return null;
+    if (!account.owner.equals(this.programId)) {
+      throw new BadRequestException('Payment link is not owned by the VeriAgent Solana program');
+    }
+    return decodePaymentLinkAccount(account.data);
   }
 
   vaultTokenAccount(vaultAddress: string): PublicKey {
@@ -197,6 +216,107 @@ export class SolanaChainService {
       [this.createRecipientAtaInstruction(params.recipientAddress), transfer],
       [params.sessionKeypair],
     );
+  }
+
+  paymentLinkAddress(vaultAddress: string, linkId: Uint8Array): PublicKey {
+    return derivePaymentLink(this.publicKey(vaultAddress, 'vault'), linkId, this.programId);
+  }
+
+  async createPaymentLinkWithSession(params: {
+    vaultAddress: string;
+    sessionKeypair: Keypair;
+    linkId: Uint8Array;
+    recipientCommitment: Uint8Array;
+    amount: bigint;
+    expiresAtUnix: bigint;
+    sessionNonce: bigint;
+  }): Promise<ConfirmedSolanaTransaction & { paymentLink: string }> {
+    const vault = this.publicKey(params.vaultAddress, 'vault');
+    const session = deriveSession(vault, params.sessionKeypair.publicKey, this.programId);
+    const paymentLink = derivePaymentLink(vault, params.linkId, this.programId);
+    const instruction = createPaymentLinkWithSessionInstruction({
+      payer: this.feePayer.publicKey,
+      config: this.configAddress,
+      vault,
+      session,
+      sessionSigner: params.sessionKeypair.publicKey,
+      stablecoinMint: this.stablecoinMint,
+      vaultTokenAccount: this.vaultTokenAccount(params.vaultAddress),
+      paymentLink,
+      escrowTokenAccount: derivePaymentLinkTokenAccount(paymentLink, this.stablecoinMint),
+      linkId: params.linkId,
+      recipientCommitment: params.recipientCommitment,
+      amount: params.amount,
+      expiresAtUnix: params.expiresAtUnix,
+      sessionNonce: params.sessionNonce,
+      programId: this.programId,
+    });
+    return {
+      ...(await this.submit([instruction], [params.sessionKeypair])),
+      paymentLink: paymentLink.toBase58(),
+    };
+  }
+
+  async claimPaymentLink(params: {
+    paymentLinkAddress: string;
+    recipientVaultAddress: string;
+  }): Promise<ConfirmedSolanaTransaction> {
+    const paymentLink = this.publicKey(params.paymentLinkAddress, 'payment link');
+    const recipientVault = this.publicKey(params.recipientVaultAddress, 'recipient vault');
+    const instruction = createClaimPaymentLinkInstruction({
+      claimAuthority: this.feePayer.publicKey,
+      config: this.configAddress,
+      claimAuthorityConfig: this.claimAuthorityConfigAddress,
+      recipientVault,
+      paymentLink,
+      stablecoinMint: this.stablecoinMint,
+      escrowTokenAccount: derivePaymentLinkTokenAccount(paymentLink, this.stablecoinMint),
+      destinationTokenAccount: this.recipientTokenAccount(params.recipientVaultAddress),
+      programId: this.programId,
+    });
+    return this.submit([instruction], []);
+  }
+
+  async cancelPaymentLinkWithSession(params: {
+    vaultAddress: string;
+    paymentLinkAddress: string;
+    sessionKeypair: Keypair;
+    sessionNonce: bigint;
+  }): Promise<ConfirmedSolanaTransaction> {
+    const vault = this.publicKey(params.vaultAddress, 'vault');
+    const paymentLink = this.publicKey(params.paymentLinkAddress, 'payment link');
+    const session = deriveSession(vault, params.sessionKeypair.publicKey, this.programId);
+    const instruction = createCancelPaymentLinkWithSessionInstruction({
+      config: this.configAddress,
+      vault,
+      session,
+      sessionSigner: params.sessionKeypair.publicKey,
+      paymentLink,
+      stablecoinMint: this.stablecoinMint,
+      escrowTokenAccount: derivePaymentLinkTokenAccount(paymentLink, this.stablecoinMint),
+      vaultTokenAccount: this.vaultTokenAccount(params.vaultAddress),
+      sessionNonce: params.sessionNonce,
+      programId: this.programId,
+    });
+    return this.submit([instruction], [params.sessionKeypair]);
+  }
+
+  async refundExpiredPaymentLink(params: {
+    senderVaultAddress: string;
+    paymentLinkAddress: string;
+  }): Promise<ConfirmedSolanaTransaction> {
+    const senderVault = this.publicKey(params.senderVaultAddress, 'sender vault');
+    const paymentLink = this.publicKey(params.paymentLinkAddress, 'payment link');
+    const instruction = createRefundExpiredPaymentLinkInstruction({
+      config: this.configAddress,
+      senderVault,
+      paymentLink,
+      stablecoinMint: this.stablecoinMint,
+      escrowTokenAccount: derivePaymentLinkTokenAccount(paymentLink, this.stablecoinMint),
+      vaultTokenAccount: this.vaultTokenAccount(params.senderVaultAddress),
+      programId: this.programId,
+    });
+    return this.submit([instruction], []);
   }
 
   sessionKeypair(secret: string): Keypair {

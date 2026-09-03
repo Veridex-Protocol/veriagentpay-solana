@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { customAlphabet } from 'nanoid';
 import { getAppBaseUrl } from '../config/app-url.config';
+import { isSolanaAddress } from '../chains/solana/solana-account';
 
 const base62Alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const generateNanoid = customAlphabet(base62Alphabet, 8);
@@ -20,6 +21,7 @@ export interface CreateShortLinkDto {
   /** Transaction that funded an on-chain social-payment escrow. */
   fundingTxHash?: string;
   expiresAt?: Date;
+  status?: string;
   /** Campaign attribution, persisted so every click is measurable. */
   src?: string;
   campaign?: string;
@@ -104,7 +106,7 @@ export class ShortLinksService {
         merkleProof: dto.merkleProof || null,
         fundingTxHash: dto.fundingTxHash || null,
         expiresAt: dto.expiresAt || defaultExpiry,
-        status: 'ACTIVE',
+        status: dto.status || 'ACTIVE',
         src: dto.src || dto.platform || null,
         campaign: dto.campaign || dto.kind,
         partner: dto.partner || null,
@@ -139,7 +141,7 @@ export class ShortLinksService {
     }
 
     const isExpired = record.expiresAt && new Date(record.expiresAt) < new Date();
-    if (record.status === 'ACTIVE' && isExpired) {
+    if (record.status === 'ACTIVE' && isExpired && !isNativeSolanaPaymentLink(record)) {
       await this.prisma.shortLink.update({
         where: { code },
         data: { status: 'EXPIRED' },
@@ -165,7 +167,7 @@ export class ShortLinksService {
       throw new BadRequestException(`Short link code '${code}' is no longer active (status: ${record.status})`);
     }
 
-    if (record.expiresAt && record.expiresAt < new Date()) {
+    if (record.expiresAt && record.expiresAt < new Date() && !isNativeSolanaPaymentLink(record)) {
       await this.prisma.shortLink.update({
         where: { code },
         data: { status: 'EXPIRED' },
@@ -226,12 +228,20 @@ export class ShortLinksService {
     });
 
     for (const link of expiredLinks) {
+      if (isNativeSolanaPaymentLink(link)) continue;
       await this.prisma.shortLink.update({
         where: { id: link.id },
         data: { status: 'EXPIRED' },
       });
     }
 
-    return expiredLinks;
+    return expiredLinks.filter((link) => !isNativeSolanaPaymentLink(link));
   }
+}
+
+function isNativeSolanaPaymentLink(link: {
+  kind: string;
+  envelopeId?: string | null;
+}): boolean {
+  return link.kind === 'pay' && Boolean(link.envelopeId && isSolanaAddress(link.envelopeId));
 }

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ShortLinksService } from '../shortlinks/shortlinks.service';
+import { EscrowService } from '../escrow/escrow.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../core/redis.service';
 import { PLATFORM_SERVICE, type PlatformMessenger } from '../common/service-contracts';
@@ -11,6 +12,7 @@ export class ExpiryCron {
 
   constructor(
     private readonly shortLinksService: ShortLinksService,
+    private readonly escrowService: EscrowService,
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     @Inject(PLATFORM_SERVICE)
@@ -75,8 +77,11 @@ export class ExpiryCron {
   async handleExpiredLinksSweep() {
     this.logger.log('Starting daily expired short links sweep...');
     try {
-      const expired = await this.shortLinksService.sweepExpired();
-      this.logger.log(`Swept ${expired.length} expired short links.`);
+      const [native, other] = await Promise.all([
+        this.escrowService.sweepExpired(),
+        this.shortLinksService.sweepExpired(),
+      ]);
+      this.logger.log(`Swept ${native.length + other.length} expired short links.`);
     } catch (e: any) {
       this.logger.error(`Error sweeping expired short links: ${e.message}`, e.stack);
     }

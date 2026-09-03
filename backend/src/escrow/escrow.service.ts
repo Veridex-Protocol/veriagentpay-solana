@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, Logger, Optional } from '@nestjs/common';
 import { UserActivityAction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ethers } from 'ethers';
@@ -12,6 +12,7 @@ import { getTelegramDeepLink } from '../config/app-url.config';
 import { createRelayerSigner } from '../relayer/relayer-signer.factory';
 import { createBotChainProvider } from '../common/rpc-provider.helper';
 import { RedisService } from '../core/redis.service';
+import { SolanaPaymentLinksService } from './solana-payment-links.service';
 
 export interface CreateEscrowLinkDto {
   senderUserId: string;
@@ -39,7 +40,8 @@ export class EscrowService {
     private readonly shortLinksService: ShortLinksService,
     private readonly relayerService: RelayerService,
     private readonly redis: RedisService,
-    private readonly activityService?: ActivityService
+    private readonly activityService?: ActivityService,
+    @Optional() private readonly solanaPaymentLinks?: SolanaPaymentLinksService,
   ) {
     this.relayerSigner = createRelayerSigner(this.provider);
   }
@@ -48,6 +50,7 @@ export class EscrowService {
    * Pre-flight check & escrow creation for 1-on-1 social payment links.
    */
   async createClaimLink(dto: CreateEscrowLinkDto) {
+    if (this.solanaPaymentLinks) return this.solanaPaymentLinks.createClaimLink(dto);
     if (!this.socialPaymentsAddress) {
       throw new BadRequestException('SOCIAL_PAYMENTS_ADDRESS not configured');
     }
@@ -274,6 +277,7 @@ export class EscrowService {
       toAddress: recipientAddr,
       amount: dto.amount,
       token: tokenSymbol,
+      txHash: createResult.txHash,
     };
   }
 
@@ -281,6 +285,9 @@ export class EscrowService {
    * Executes gasless claim releasing tokens from SocialPayments escrow to claimer's vault.
    */
   async claim(code: string, claimerUserId: string, claimerAddress: string) {
+    if (this.solanaPaymentLinks) {
+      return this.solanaPaymentLinks.claim(code, claimerUserId, claimerAddress);
+    }
     // Rate limiting: max 5 attempts per code per 15 minutes.
     //
     // Held in Redis, not an in-process Map. The previous Map was per-replica and
@@ -493,6 +500,7 @@ export class EscrowService {
    * Lists a sender's escrows that are still outstanding and therefore cancellable.
    */
   async listCancellable(senderUserId: string) {
+    if (this.solanaPaymentLinks) return this.solanaPaymentLinks.listCancellable(senderUserId);
     const links = await this.prisma.shortLink.findMany({
       where: { senderUserId, status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
@@ -526,6 +534,7 @@ export class EscrowService {
    * sender who wants their money back now.
    */
   async cancelClaimLink(code: string, senderUserId: string) {
+    if (this.solanaPaymentLinks) return this.solanaPaymentLinks.cancelClaimLink(code, senderUserId);
     const link = await this.prisma.shortLink.findUnique({ where: { code } });
     if (!link) throw new BadRequestException('Claim link not found.');
 
@@ -644,5 +653,10 @@ export class EscrowService {
       recipient: link.targetUserId,
       refunded: Boolean(link.envelopeId),
     };
+  }
+
+  async sweepExpired() {
+    if (this.solanaPaymentLinks) return this.solanaPaymentLinks.sweepExpired();
+    return this.shortLinksService.sweepExpired();
   }
 }

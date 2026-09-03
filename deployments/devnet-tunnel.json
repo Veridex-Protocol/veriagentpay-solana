@@ -13,8 +13,8 @@
     "origin": "https://1pm4tfwd-3000.brs.devtunnels.ms"
   },
   "artifact": {
-    "sha256": "3176122913b9f23894c99dec89b934169577e801dec05933128511c4ec405733",
-    "dataLength": 490352,
+    "sha256": "ada200a292808fa8a7509a48d328a3d28dae7491cdbc5f4a85840eb2eb097557",
+    "dataLength": 609408,
     "platformTools": "v1.57",
     "cargoFeature": "tunnel-program"
   },
@@ -27,5 +27,20 @@
     "signature": "oxPju1a5PbWCusVn69g2Cdf5yxNduvFqmiGzNJcFa9xGThwguXTuPxFoPKmseniuTTijsEnGtEiPeQV6g7YsbGM",
     "slot": 491966832,
     "initializedAt": "2026-09-02T12:00:42Z"
+  },
+  "latestUpgrade": {
+    "signature": "63kDXECwt3PEzaS1Mmbkqbk9bC9vF3qoCZ5CoqwKDvsVCC6TL5LvnXwnokc7brst3vRMwufLnn37dGegxjbYxYJG",
+    "slot": 492526699,
+    "upgradedAt": "2026-09-03T13:47:08Z",
+    "features": [
+      "native-usdc-payment-links"
+    ]
+  },
+  "paymentLinks": {
+    "claimAuthorityConfig": "9jGXt9CVtwYHmdbg8asU6GUK9kf2Zt4T6eDsaszyktp5",
+    "claimAuthority": "DQgy7SB51Z951EuoRApteBLPDuHo38KuumsN4mEWMZeV",
+    "initializationSignature": "3XmPr6H97zubJVWVYDoaZKrzw9s6oqYTMV4LNGxZSVpZD8BQXr12NJbhpk7VvhhvC1sXedM6T8jhWEF6UqwNJpF1",
+    "initializationSlot": 492534665,
+    "initializedAt": "2026-09-03T14:09:12Z"
   }
 }

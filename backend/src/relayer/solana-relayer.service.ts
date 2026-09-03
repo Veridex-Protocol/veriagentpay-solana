@@ -234,6 +234,97 @@ export class SolanaRelayerService {
     return { success: true, txHash: confirmed.signature };
   }
 
+  async createPaymentLinkWithSession(params: {
+    userId: string;
+    vaultAddress: string;
+    encryptedSessionKey: string;
+    amountUSD: number;
+    linkId: Uint8Array;
+    recipientCommitment: Uint8Array;
+    expiresAtUnix: bigint;
+  }): Promise<{ success: true; txHash: string; paymentLink: string }> {
+    const sessionKeypair = this.solana.sessionKeypair(params.encryptedSessionKey);
+    const sessionRecord = await this.requireActiveSession(params.userId, sessionKeypair);
+    await this.assertAvailableDailyLimit(sessionRecord, params.amountUSD);
+
+    const session = await this.solana.readSession(
+      params.vaultAddress,
+      sessionKeypair.publicKey.toBase58(),
+    );
+    if (!session || session.state.revoked) {
+      throw new ForbiddenException('Session grant is not active on Solana');
+    }
+    const amount = usdToAtomic(params.amountUSD);
+    if (await this.solana.getVaultUsdcBalance(params.vaultAddress) < amount) {
+      throw new BadRequestException('Insufficient USDC balance');
+    }
+    const confirmed = await this.solana.createPaymentLinkWithSession({
+      vaultAddress: params.vaultAddress,
+      sessionKeypair,
+      linkId: params.linkId,
+      recipientCommitment: params.recipientCommitment,
+      amount,
+      expiresAtUnix: params.expiresAtUnix,
+      sessionNonce: session.state.nonce,
+    });
+    await this.prisma.spendingRecord.create({
+      data: {
+        sessionKeyId: sessionRecord.id,
+        amountUSD: params.amountUSD,
+        txHash: confirmed.signature,
+      },
+    });
+    return {
+      success: true,
+      txHash: confirmed.signature,
+      paymentLink: confirmed.paymentLink,
+    };
+  }
+
+  async claimPaymentLink(paymentLinkAddress: string, recipientVaultAddress: string) {
+    const confirmed = await this.solana.claimPaymentLink({
+      paymentLinkAddress,
+      recipientVaultAddress,
+    });
+    return { success: true as const, txHash: confirmed.signature };
+  }
+
+  async cancelPaymentLinkWithSession(params: {
+    userId: string;
+    vaultAddress: string;
+    paymentLinkAddress: string;
+    encryptedSessionKey: string;
+  }) {
+    const sessionKeypair = this.solana.sessionKeypair(params.encryptedSessionKey);
+    await this.requireActiveSession(params.userId, sessionKeypair);
+    const session = await this.solana.readSession(
+      params.vaultAddress,
+      sessionKeypair.publicKey.toBase58(),
+    );
+    if (!session || session.state.revoked) {
+      throw new ForbiddenException('Session grant is not active on Solana');
+    }
+    const confirmed = await this.solana.cancelPaymentLinkWithSession({
+      vaultAddress: params.vaultAddress,
+      paymentLinkAddress: params.paymentLinkAddress,
+      sessionKeypair,
+      sessionNonce: session.state.nonce,
+    });
+    return { success: true as const, txHash: confirmed.signature };
+  }
+
+  async refundExpiredPaymentLink(senderVaultAddress: string, paymentLinkAddress: string) {
+    const confirmed = await this.solana.refundExpiredPaymentLink({
+      senderVaultAddress,
+      paymentLinkAddress,
+    });
+    return { success: true as const, txHash: confirmed.signature };
+  }
+
+  async readPaymentLink(paymentLinkAddress: string) {
+    return this.solana.readPaymentLink(paymentLinkAddress);
+  }
+
   async executeLocalSessionAction(
     _userId: string,
     _vaultAddress: string,
@@ -280,6 +371,43 @@ export class SolanaRelayerService {
         chainId: null,
       },
     }).catch((error) => this.logger.error(`Audit write failed: ${error.message}`));
+  }
+
+  private async requireActiveSession(userId: string, sessionKeypair: Keypair) {
+    const sessionRecord = await this.prisma.sessionKey.findUnique({
+      where: { keyHash: sessionKeypair.publicKey.toBase58() },
+    });
+    if (
+      !sessionRecord ||
+      sessionRecord.userId !== userId ||
+      sessionRecord.revokedAt ||
+      !sessionRecord.activatedAt ||
+      sessionRecord.expiryAt <= new Date()
+    ) {
+      const error = new ForbiddenException('Session key is expired, revoked, or inactive');
+      (error as any).code = 'SESSION_EXPIRED';
+      throw error;
+    }
+    return sessionRecord;
+  }
+
+  private async assertAvailableDailyLimit(
+    sessionRecord: { id: string; perTxLimitUSD: any; dailyLimitUSD: any },
+    amountUSD: number,
+  ) {
+    if (amountUSD > Number(sessionRecord.perTxLimitUSD)) {
+      throw new ForbiddenException('Transaction exceeds the session per-payment limit');
+    }
+    const recent = await this.prisma.spendingRecord.aggregate({
+      where: {
+        sessionKeyId: sessionRecord.id,
+        timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+      _sum: { amountUSD: true },
+    });
+    if (Number(recent._sum.amountUSD || 0) + amountUSD > Number(sessionRecord.dailyLimitUSD)) {
+      throw new ForbiddenException('Transaction exceeds the session daily limit');
+    }
   }
 }
 
